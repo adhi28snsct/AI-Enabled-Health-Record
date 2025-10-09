@@ -1,0 +1,252 @@
+export const mockPatientData = {
+  id: '1',
+  user_id: '1',
+  full_name: 'John Doe',
+  email: 'john.doe@example.com',
+  date_of_birth: '1985-05-15',
+  gender: 'male' as const,
+  blood_type: 'O+',
+  phone: '+1-555-0123',
+  address: '123 Main St, City, State 12345',
+  emergency_contact_name: 'Jane Doe',
+  emergency_contact_phone: '+1-555-0124',
+  preferred_language: 'en',
+};
+
+export const mockAIDiagnostics = {
+  id: '1',
+  patient_id: '1',
+  risk_level: 'moderate' as const,
+  diabetes_risk: 45,
+  anemia_risk: 25,
+  hypertension_risk: 65,
+  cardiac_risk: 35,
+  suggestions: [
+    'Monitor blood pressure regularly',
+    'Consider lifestyle modifications for weight management',
+    'Schedule follow-up in 2 weeks',
+  ],
+  recommended_tests: [
+    'Lipid Profile',
+    'HbA1c Test',
+    'Complete Blood Count',
+  ],
+  analyzed_at: new Date().toISOString(),
+};
+
+export const mockAlerts = [
+  {
+    id: '1',
+    patient_id: '1',
+    alert_type: 'abnormal_vitals' as const,
+    severity: 'medium' as const,
+    message: 'Blood pressure reading above normal range (145/92)',
+    is_read: false,
+    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: '2',
+    patient_id: '1',
+    alert_type: 'follow_up' as const,
+    severity: 'low' as const,
+    message: 'Schedule your quarterly health checkup',
+    is_read: false,
+    created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+  },
+];
+
+export const mockHealthRecords = [
+  {
+    id: '1',
+    patient_id: '1',
+    record_type: 'visit' as const,
+    title: 'Annual Physical Examination',
+    description: 'Complete physical examination with vital signs monitoring. Patient reports occasional headaches.',
+    recorded_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    recorded_by: 'Dr. Sarah Johnson',
+  },
+  {
+    id: '2',
+    patient_id: '1',
+    record_type: 'diagnosis' as const,
+    title: 'Hypertension Stage 1',
+    description: 'Diagnosed with mild hypertension. Blood pressure consistently above 130/80.',
+    recorded_at: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
+    recorded_by: 'Dr. Sarah Johnson',
+  },
+  {
+    id: '3',
+    patient_id: '1',
+    record_type: 'treatment' as const,
+    title: 'Lifestyle Modification Plan',
+    description: 'Recommended dietary changes, regular exercise, and stress management techniques.',
+    recorded_at: new Date(Date.now() - 55 * 24 * 60 * 60 * 1000).toISOString(),
+    recorded_by: 'Dr. Sarah Johnson',
+  },
+];
+
+export const mockPrescriptions = [
+  {
+    id: '1',
+    patient_id: '1',
+    medication_name: 'Lisinopril',
+    dosage: '10mg',
+    frequency: 'Once daily',
+    duration: '90 days',
+    notes: 'Take in the morning with food',
+    prescribed_at: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
+    prescribed_by: 'Dr. Sarah Johnson',
+  },
+  {
+    id: '2',
+    patient_id: '1',
+    medication_name: 'Aspirin',
+    dosage: '81mg',
+    frequency: 'Once daily',
+    duration: 'Ongoing',
+    notes: 'Low-dose for cardiovascular protection',
+    prescribed_at: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
+    prescribed_by: 'Dr. Sarah Johnson',
+  },
+];
+
+export const mockLabReports = [
+  {
+    id: '1',
+    patient_id: '1',
+    test_name: 'Complete Blood Count',
+    test_type: 'Hematology',
+    results: {
+      'WBC': { value: 7.2, unit: 'K/uL', range: '4.5-11.0', status: 'normal' },
+      'RBC': { value: 4.5, unit: 'M/uL', range: '4.5-5.9', status: 'normal' },
+      'Hemoglobin': { value: 13.8, unit: 'g/dL', range: '13.5-17.5', status: 'normal' },
+      'Hematocrit': { value: 41.2, unit: '%', range: '38.8-50.0', status: 'normal' },
+    },
+    test_date: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+    notes: 'All values within normal range',
+  },
+  {
+    id: '2',
+    patient_id: '1',
+    test_name: 'Lipid Panel',
+    test_type: 'Chemistry',
+    results: {
+      'Total Cholesterol': { value: 215, unit: 'mg/dL', range: '<200', status: 'high' },
+      'LDL': { value: 135, unit: 'mg/dL', range: '<100', status: 'high' },
+      'HDL': { value: 45, unit: 'mg/dL', range: '>40', status: 'normal' },
+      'Triglycerides': { value: 175, unit: 'mg/dL', range: '<150', status: 'high' },
+    },
+    test_date: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
+    notes: 'Elevated cholesterol levels. Recommend dietary modifications.',
+  },
+];
+
+export const mockVitals = [
+  {
+    id: '1',
+    patient_id: '1',
+    blood_pressure_systolic: 145,
+    blood_pressure_diastolic: 92,
+    heart_rate: 78,
+    temperature: 98.6,
+    weight: 185,
+    height: 175,
+    blood_glucose: 105,
+    oxygen_saturation: 98,
+    symptoms: 'Mild headache',
+    recorded_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: '2',
+    patient_id: '1',
+    blood_pressure_systolic: 138,
+    blood_pressure_diastolic: 88,
+    heart_rate: 72,
+    temperature: 98.4,
+    weight: 184,
+    height: 175,
+    blood_glucose: 98,
+    oxygen_saturation: 99,
+    symptoms: null,
+    recorded_at: new Date(Date.now() - 32 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+];
+
+export const mockPatientsList = [
+  {
+    id: '1',
+    user_id: '1',
+    full_name: 'John Doe',
+    date_of_birth: '1985-05-15',
+    gender: 'male' as const,
+    last_visit: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    risk_level: 'moderate' as const,
+  },
+  {
+    id: '2',
+    user_id: '2',
+    full_name: 'Sarah Williams',
+    date_of_birth: '1992-08-22',
+    gender: 'female' as const,
+    last_visit: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    risk_level: 'low' as const,
+  },
+  {
+    id: '3',
+    user_id: '3',
+    full_name: 'Michael Chen',
+    date_of_birth: '1978-03-10',
+    gender: 'male' as const,
+    last_visit: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    risk_level: 'high' as const,
+  },
+  {
+    id: '4',
+    user_id: '4',
+    full_name: 'Emily Rodriguez',
+    date_of_birth: '1995-11-30',
+    gender: 'female' as const,
+    last_visit: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    risk_level: 'low' as const,
+  },
+  {
+    id: '5',
+    user_id: '5',
+    full_name: 'David Kumar',
+    date_of_birth: '1982-07-18',
+    gender: 'male' as const,
+    last_visit: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    risk_level: 'critical' as const,
+  },
+];
+
+export const mockAnalyticsData = {
+  totalPatients: 1247,
+  activePatients: 892,
+  highRiskPatients: 53,
+  criticalAlerts: 8,
+  diabetesPrevalence: 12.4,
+  hypertensionPrevalence: 28.7,
+  anemiaPrevalence: 15.3,
+  monthlyTrends: [
+    { month: 'Apr', patients: 1180, visits: 423 },
+    { month: 'May', patients: 1198, visits: 456 },
+    { month: 'Jun', patients: 1215, visits: 478 },
+    { month: 'Jul', patients: 1230, visits: 492 },
+    { month: 'Aug', patients: 1235, visits: 501 },
+    { month: 'Sep', patients: 1247, visits: 518 },
+  ],
+  regionData: [
+    { region: 'North District', patients: 342, highRisk: 18 },
+    { region: 'South District', patients: 298, highRisk: 12 },
+    { region: 'East District', patients: 315, highRisk: 15 },
+    { region: 'West District', patients: 292, highRisk: 8 },
+  ],
+  ageDistribution: [
+    { ageGroup: '0-18', count: 124 },
+    { ageGroup: '19-35', count: 287 },
+    { ageGroup: '36-50', count: 342 },
+    { ageGroup: '51-65', count: 298 },
+    { ageGroup: '65+', count: 196 },
+  ],
+};

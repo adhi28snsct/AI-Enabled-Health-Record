@@ -1,0 +1,134 @@
+export interface Database {
+  public: {
+    Tables: {
+      users: {
+        Row: {
+          id: string;
+          email: string;
+          full_name: string;
+          role: 'patient' | 'health_worker' | 'doctor' | 'admin';
+          phone: string | null;
+          preferred_language: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['users']['Row'], 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Database['public']['Tables']['users']['Insert']>;
+      };
+      patients: {
+        Row: {
+          id: string;
+          user_id: string;
+          date_of_birth: string;
+          gender: 'male' | 'female' | 'other';
+          blood_type: string | null;
+          address: string | null;
+          emergency_contact_name: string | null;
+          emergency_contact_phone: string | null;
+          assigned_health_worker_id: string | null;
+          assigned_doctor_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['patients']['Row'], 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Database['public']['Tables']['patients']['Insert']>;
+      };
+      health_records: {
+        Row: {
+          id: string;
+          patient_id: string;
+          recorded_by_id: string;
+          record_type: 'visit' | 'diagnosis' | 'treatment' | 'note';
+          title: string;
+          description: string | null;
+          recorded_at: string;
+          created_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['health_records']['Row'], 'id' | 'created_at'>;
+        Update: Partial<Database['public']['Tables']['health_records']['Insert']>;
+      };
+      vitals: {
+        Row: {
+          id: string;
+          patient_id: string;
+          recorded_by_id: string;
+          blood_pressure_systolic: number | null;
+          blood_pressure_diastolic: number | null;
+          heart_rate: number | null;
+          temperature: number | null;
+          weight: number | null;
+          height: number | null;
+          blood_glucose: number | null;
+          oxygen_saturation: number | null;
+          symptoms: string | null;
+          recorded_at: string;
+          created_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['vitals']['Row'], 'id' | 'created_at'>;
+        Update: Partial<Database['public']['Tables']['vitals']['Insert']>;
+      };
+      prescriptions: {
+        Row: {
+          id: string;
+          patient_id: string;
+          prescribed_by_id: string;
+          medication_name: string;
+          dosage: string;
+          frequency: string;
+          duration: string | null;
+          notes: string | null;
+          prescribed_at: string;
+          created_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['prescriptions']['Row'], 'id' | 'created_at'>;
+        Update: Partial<Database['public']['Tables']['prescriptions']['Insert']>;
+      };
+      lab_reports: {
+        Row: {
+          id: string;
+          patient_id: string;
+          ordered_by_id: string;
+          test_name: string;
+          test_type: string | null;
+          results: any;
+          notes: string | null;
+          test_date: string;
+          created_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['lab_reports']['Row'], 'id' | 'created_at'>;
+        Update: Partial<Database['public']['Tables']['lab_reports']['Insert']>;
+      };
+      ai_diagnostics: {
+        Row: {
+          id: string;
+          patient_id: string;
+          vitals_id: string | null;
+          risk_level: 'low' | 'moderate' | 'high' | 'critical';
+          diabetes_risk: number | null;
+          anemia_risk: number | null;
+          hypertension_risk: number | null;
+          cardiac_risk: number | null;
+          suggestions: string[];
+          recommended_tests: string[];
+          analyzed_at: string;
+          created_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['ai_diagnostics']['Row'], 'id' | 'created_at'>;
+        Update: Partial<Database['public']['Tables']['ai_diagnostics']['Insert']>;
+      };
+      alerts: {
+        Row: {
+          id: string;
+          patient_id: string;
+          alert_type: 'high_risk' | 'abnormal_vitals' | 'missed_medication' | 'follow_up';
+          severity: 'low' | 'medium' | 'high' | 'critical';
+          message: string;
+          is_read: boolean;
+          created_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['alerts']['Row'], 'id' | 'created_at'>;
+        Update: Partial<Database['public']['Tables']['alerts']['Insert']>;
+      };
+    };
+  };
+}
