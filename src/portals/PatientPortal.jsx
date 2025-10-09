@@ -9,25 +9,23 @@ import {
   mockLabReports,
 } from '../lib/mockData';
 
-type Page = 'dashboard' | 'records' | 'profile';
-
 export default function PatientPortal() {
-  const [currentPage, setCurrentPage] = useState<Page>('dashboard');
+  const [currentPage, setCurrentPage] = useState('dashboard');
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const getRiskColor = (risk: number) => {
+  const getRiskColor = (risk) => {
     if (risk < 30) return 'text-green-600';
     if (risk < 60) return 'text-yellow-600';
     return 'text-red-600';
   };
 
-  const getRiskBg = (risk: number) => {
+  const getRiskBg = (risk) => {
     if (risk < 30) return 'bg-green-100';
     if (risk < 60) return 'bg-yellow-100';
     return 'bg-red-100';
   };
 
-  const getSeverityColor = (severity: string) => {
+  const getSeverityColor = (severity) => {
     switch (severity) {
       case 'low': return 'bg-blue-100 text-blue-800';
       case 'medium': return 'bg-yellow-100 text-yellow-800';
@@ -37,7 +35,7 @@ export default function PatientPortal() {
     }
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -45,7 +43,7 @@ export default function PatientPortal() {
     });
   };
 
-  const formatTime = (dateString: string) => {
+  const formatTime = (dateString) => {
     return new Date(dateString).toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
@@ -156,6 +154,7 @@ export default function PatientPortal() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* DASHBOARD */}
         {currentPage === 'dashboard' && (
           <div className="space-y-6">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-6 text-white">
@@ -166,30 +165,14 @@ export default function PatientPortal() {
             <div className="bg-white rounded-xl shadow-sm p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">AI Health Summary</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className={`${getRiskBg(mockAIDiagnostics.diabetes_risk)} rounded-lg p-4`}>
-                  <div className="text-sm text-gray-600 mb-1">Diabetes Risk</div>
-                  <div className={`text-3xl font-bold ${getRiskColor(mockAIDiagnostics.diabetes_risk)}`}>
-                    {mockAIDiagnostics.diabetes_risk}%
+                {['diabetes_risk', 'anemia_risk', 'hypertension_risk', 'cardiac_risk'].map((key) => (
+                  <div key={key} className={`${getRiskBg(mockAIDiagnostics[key])} rounded-lg p-4`}>
+                    <div className="text-sm text-gray-600 mb-1 capitalize">{key.replace('_', ' ')}</div>
+                    <div className={`text-3xl font-bold ${getRiskColor(mockAIDiagnostics[key])}`}>
+                      {mockAIDiagnostics[key]}%
+                    </div>
                   </div>
-                </div>
-                <div className={`${getRiskBg(mockAIDiagnostics.anemia_risk)} rounded-lg p-4`}>
-                  <div className="text-sm text-gray-600 mb-1">Anemia Risk</div>
-                  <div className={`text-3xl font-bold ${getRiskColor(mockAIDiagnostics.anemia_risk)}`}>
-                    {mockAIDiagnostics.anemia_risk}%
-                  </div>
-                </div>
-                <div className={`${getRiskBg(mockAIDiagnostics.hypertension_risk)} rounded-lg p-4`}>
-                  <div className="text-sm text-gray-600 mb-1">Hypertension Risk</div>
-                  <div className={`text-3xl font-bold ${getRiskColor(mockAIDiagnostics.hypertension_risk)}`}>
-                    {mockAIDiagnostics.hypertension_risk}%
-                  </div>
-                </div>
-                <div className={`${getRiskBg(mockAIDiagnostics.cardiac_risk)} rounded-lg p-4`}>
-                  <div className="text-sm text-gray-600 mb-1">Cardiac Risk</div>
-                  <div className={`text-3xl font-bold ${getRiskColor(mockAIDiagnostics.cardiac_risk)}`}>
-                    {mockAIDiagnostics.cardiac_risk}%
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
 
@@ -220,10 +203,12 @@ export default function PatientPortal() {
           </div>
         )}
 
+        {/* RECORDS */}
         {currentPage === 'records' && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-gray-900">My Health Records</h2>
 
+            {/* Medical History */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Calendar className="w-5 h-5 text-blue-600" />
@@ -254,54 +239,46 @@ export default function PatientPortal() {
               </div>
             </div>
 
+            {/* Prescriptions */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Pill className="w-5 h-5 text-green-600" />
                 <h3 className="text-lg font-semibold text-gray-900">Prescriptions</h3>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                {mockPrescriptions.map((prescription) => (
-                  <div key={prescription.id} className="bg-green-50 rounded-lg p-4">
-                    <h4 className="font-semibold text-gray-900 mb-2">{prescription.medication_name}</h4>
+                {mockPrescriptions.map((p) => (
+                  <div key={p.id} className="bg-green-50 rounded-lg p-4">
+                    <h4 className="font-semibold text-gray-900 mb-2">{p.medication_name}</h4>
                     <div className="space-y-1 text-sm">
-                      <p className="text-gray-700">
-                        <span className="font-medium">Dosage:</span> {prescription.dosage}
-                      </p>
-                      <p className="text-gray-700">
-                        <span className="font-medium">Frequency:</span> {prescription.frequency}
-                      </p>
-                      <p className="text-gray-700">
-                        <span className="font-medium">Duration:</span> {prescription.duration}
-                      </p>
-                      {prescription.notes && (
-                        <p className="text-gray-600 mt-2">{prescription.notes}</p>
-                      )}
-                      <p className="text-gray-500 mt-2">
-                        Prescribed: {formatDate(prescription.prescribed_at)}
-                      </p>
+                      <p><span className="font-medium">Dosage:</span> {p.dosage}</p>
+                      <p><span className="font-medium">Frequency:</span> {p.frequency}</p>
+                      <p><span className="font-medium">Duration:</span> {p.duration}</p>
+                      {p.notes && <p className="text-gray-600 mt-2">{p.notes}</p>}
+                      <p className="text-gray-500 mt-2">Prescribed: {formatDate(p.prescribed_at)}</p>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
+            {/* Lab Reports */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               <div className="flex items-center gap-2 mb-4">
                 <FlaskConical className="w-5 h-5 text-purple-600" />
                 <h3 className="text-lg font-semibold text-gray-900">Lab Reports</h3>
               </div>
               <div className="space-y-4">
-                {mockLabReports.map((report) => (
-                  <div key={report.id} className="border border-gray-200 rounded-lg p-4">
+                {mockLabReports.map((r) => (
+                  <div key={r.id} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex justify-between items-start mb-3">
                       <div>
-                        <h4 className="font-semibold text-gray-900">{report.test_name}</h4>
-                        <p className="text-sm text-gray-500">{report.test_type}</p>
+                        <h4 className="font-semibold text-gray-900">{r.test_name}</h4>
+                        <p className="text-sm text-gray-500">{r.test_type}</p>
                       </div>
-                      <p className="text-sm text-gray-500">{formatDate(report.test_date)}</p>
+                      <p className="text-sm text-gray-500">{formatDate(r.test_date)}</p>
                     </div>
                     <div className="grid gap-2 sm:grid-cols-2 mb-3">
-                      {Object.entries(report.results).map(([key, value]: [string, any]) => (
+                      {Object.entries(r.results).map(([key, value]) => (
                         <div key={key} className="bg-gray-50 rounded p-3">
                           <div className="text-sm text-gray-600">{key}</div>
                           <div className="flex items-baseline gap-2">
@@ -316,8 +293,8 @@ export default function PatientPortal() {
                         </div>
                       ))}
                     </div>
-                    {report.notes && (
-                      <p className="text-sm text-gray-600 bg-blue-50 rounded p-2">{report.notes}</p>
+                    {r.notes && (
+                      <p className="text-sm text-gray-600 bg-blue-50 rounded p-2">{r.notes}</p>
                     )}
                   </div>
                 ))}
@@ -326,62 +303,39 @@ export default function PatientPortal() {
           </div>
         )}
 
+        {/* PROFILE */}
         {currentPage === 'profile' && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-gray-900">My Profile</h2>
 
+            {/* Personal Info */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
               <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Full Name</label>
-                  <p className="text-gray-900">{mockPatientData.full_name}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Email</label>
-                  <p className="text-gray-900">{mockPatientData.email}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Date of Birth</label>
-                  <p className="text-gray-900">{formatDate(mockPatientData.date_of_birth)}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Gender</label>
-                  <p className="text-gray-900 capitalize">{mockPatientData.gender}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Blood Type</label>
-                  <p className="text-gray-900">{mockPatientData.blood_type}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Phone</label>
-                  <p className="text-gray-900">{mockPatientData.phone}</p>
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Address</label>
-                  <p className="text-gray-900">{mockPatientData.address}</p>
-                </div>
+                <div><label className="block text-sm text-gray-600 mb-1">Full Name</label><p>{mockPatientData.full_name}</p></div>
+                <div><label className="block text-sm text-gray-600 mb-1">Email</label><p>{mockPatientData.email}</p></div>
+                <div><label className="block text-sm text-gray-600 mb-1">DOB</label><p>{formatDate(mockPatientData.date_of_birth)}</p></div>
+                <div><label className="block text-sm text-gray-600 mb-1">Gender</label><p>{mockPatientData.gender}</p></div>
+                <div><label className="block text-sm text-gray-600 mb-1">Blood Type</label><p>{mockPatientData.blood_type}</p></div>
+                <div><label className="block text-sm text-gray-600 mb-1">Phone</label><p>{mockPatientData.phone}</p></div>
+                <div className="sm:col-span-2"><label className="block text-sm text-gray-600 mb-1">Address</label><p>{mockPatientData.address}</p></div>
               </div>
             </div>
 
+            {/* Emergency Contact */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Emergency Contact</h3>
               <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Contact Name</label>
-                  <p className="text-gray-900">{mockPatientData.emergency_contact_name}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Contact Phone</label>
-                  <p className="text-gray-900">{mockPatientData.emergency_contact_phone}</p>
-                </div>
+                <div><label className="block text-sm text-gray-600 mb-1">Contact Name</label><p>{mockPatientData.emergency_contact_name}</p></div>
+                <div><label className="block text-sm text-gray-600 mb-1">Contact Phone</label><p>{mockPatientData.emergency_contact_phone}</p></div>
               </div>
             </div>
 
+            {/* Preferences */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Preferences</h3>
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-2">Preferred Language</label>
+                <label className="block text-sm text-gray-600 mb-2">Preferred Language</label>
                 <select
                   value={mockPatientData.preferred_language}
                   className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"

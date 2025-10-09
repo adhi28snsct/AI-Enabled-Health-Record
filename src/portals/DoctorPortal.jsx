@@ -10,7 +10,7 @@ import {
 } from '../lib/mockData';
 
 export default function DoctorPortal() {
-  const [selectedPatientId, setSelectedPatientId] = useState<string | null>('1');
+  const [selectedPatientId, setSelectedPatientId] = useState('1');
   const [searchQuery, setSearchQuery] = useState('');
   const [showPrescriptionForm, setShowPrescriptionForm] = useState(false);
   const [prescriptionForm, setPrescriptionForm] = useState({
@@ -33,7 +33,7 @@ export default function DoctorPortal() {
   const selectedPatient = mockPatientsList.find((p) => p.id === selectedPatientId);
   const latestVitals = mockVitals[0];
 
-  const getRiskBadge = (risk: string) => {
+  const getRiskBadge = (risk) => {
     switch (risk) {
       case 'low': return 'bg-green-100 text-green-800';
       case 'moderate': return 'bg-yellow-100 text-yellow-800';
@@ -43,13 +43,13 @@ export default function DoctorPortal() {
     }
   };
 
-  const getRiskColor = (risk: number) => {
+  const getRiskColor = (risk) => {
     if (risk < 30) return 'text-green-600';
     if (risk < 60) return 'text-yellow-600';
     return 'text-red-600';
   };
 
-  const handlePrescriptionSubmit = (e: React.FormEvent) => {
+  const handlePrescriptionSubmit = (e) => {
     e.preventDefault();
     alert('Prescription added successfully!');
     setPrescriptionForm({
@@ -62,7 +62,7 @@ export default function DoctorPortal() {
     setShowPrescriptionForm(false);
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -72,6 +72,7 @@ export default function DoctorPortal() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-50 border-b">
         <div className="px-4 py-4">
           <div className="flex items-center justify-between">
@@ -89,7 +90,9 @@ export default function DoctorPortal() {
         </div>
       </header>
 
+      {/* Layout */}
       <div className="flex flex-col lg:flex-row h-[calc(100vh-73px)]">
+        {/* Left Panel: Patient Queue */}
         <div className="lg:w-80 bg-white border-r overflow-y-auto">
           <div className="p-4 border-b sticky top-0 bg-white z-10">
             <h2 className="text-lg font-semibold text-gray-900 mb-3">Patient Queue</h2>
@@ -116,9 +119,9 @@ export default function DoctorPortal() {
               >
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="font-semibold text-gray-900">{patient.full_name}</h3>
-                  {patient.risk_level === 'high' || patient.risk_level === 'critical' ? (
+                  {(patient.risk_level === 'high' || patient.risk_level === 'critical') && (
                     <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-                  ) : null}
+                  )}
                 </div>
                 <div className="flex items-center gap-2 mb-1">
                   <span className={`px-2 py-1 rounded text-xs font-medium ${getRiskBadge(patient.risk_level)}`}>
@@ -135,9 +138,11 @@ export default function DoctorPortal() {
           </div>
         </div>
 
+        {/* Center Panel: Patient Details */}
         <div className="flex-1 overflow-y-auto">
           {selectedPatient ? (
             <div className="p-6 space-y-6">
+              {/* Patient Info */}
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div>
@@ -153,6 +158,7 @@ export default function DoctorPortal() {
                 </div>
               </div>
 
+              {/* Latest Vitals */}
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Latest Vitals</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -187,6 +193,7 @@ export default function DoctorPortal() {
                 )}
               </div>
 
+              {/* Prescriptions */}
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">Current Prescriptions</h3>
@@ -276,9 +283,7 @@ export default function DoctorPortal() {
                             <p className="text-gray-700">
                               <span className="font-medium">Duration:</span> {prescription.duration}
                             </p>
-                            {prescription.notes && (
-                              <p className="text-gray-600">{prescription.notes}</p>
-                            )}
+                            {prescription.notes && <p className="text-gray-600">{prescription.notes}</p>}
                           </div>
                         </div>
                         <span className="text-xs text-gray-500">{formatDate(prescription.prescribed_at)}</span>
@@ -288,6 +293,7 @@ export default function DoctorPortal() {
                 </div>
               </div>
 
+              {/* Medical History */}
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <Calendar className="w-5 h-5 text-blue-600" />
@@ -312,6 +318,7 @@ export default function DoctorPortal() {
                 </div>
               </div>
 
+              {/* Lab Reports */}
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Lab Reports</h3>
                 <div className="space-y-4">
@@ -325,12 +332,14 @@ export default function DoctorPortal() {
                         <p className="text-sm text-gray-500">{formatDate(report.test_date)}</p>
                       </div>
                       <div className="grid gap-2 grid-cols-2">
-                        {Object.entries(report.results).slice(0, 4).map(([key, value]: [string, any]) => (
+                        {Object.entries(report.results).slice(0, 4).map(([key, value]) => (
                           <div key={key} className="bg-gray-50 rounded p-2">
                             <div className="text-xs text-gray-600">{key}</div>
-                            <div className={`text-sm font-semibold ${
-                              value.status === 'high' ? 'text-red-600' : 'text-gray-900'
-                            }`}>
+                            <div
+                              className={`text-sm font-semibold ${
+                                value.status === 'high' ? 'text-red-600' : 'text-gray-900'
+                              }`}
+                            >
                               {value.value} {value.unit}
                             </div>
                           </div>
@@ -348,6 +357,7 @@ export default function DoctorPortal() {
           )}
         </div>
 
+        {/* Right Panel: AI Diagnostic Suggestions */}
         <div className="lg:w-96 bg-white border-l overflow-y-auto">
           <div className="p-6 space-y-6">
             <div>
@@ -357,6 +367,7 @@ export default function DoctorPortal() {
               </div>
 
               <div className="space-y-4">
+                {/* Risk Analysis */}
                 <div>
                   <h4 className="text-sm font-semibold text-gray-700 mb-3">Risk Analysis</h4>
                   <div className="space-y-3">
@@ -387,6 +398,7 @@ export default function DoctorPortal() {
                   </div>
                 </div>
 
+                {/* Clinical Suggestions */}
                 <div>
                   <h4 className="text-sm font-semibold text-gray-700 mb-3">Clinical Suggestions</h4>
                   <ul className="space-y-2">
@@ -399,6 +411,7 @@ export default function DoctorPortal() {
                   </ul>
                 </div>
 
+                {/* Recommended Tests */}
                 <div>
                   <h4 className="text-sm font-semibold text-gray-700 mb-3">Recommended Tests</h4>
                   <div className="space-y-2">
@@ -410,6 +423,7 @@ export default function DoctorPortal() {
                   </div>
                 </div>
 
+                {/* Footer Note */}
                 <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                   <p className="text-xs text-gray-600 italic">
                     AI analysis based on patient vitals, medical history, and current symptoms. Always use clinical judgment.

@@ -5,10 +5,8 @@ import HealthWorkerPortal from './portals/HealthWorkerPortal';
 import DoctorPortal from './portals/DoctorPortal';
 import AdminPortal from './portals/AdminPortal';
 
-type Portal = 'patient' | 'health-worker' | 'doctor' | 'admin' | null;
-
 function App() {
-  const [selectedPortal, setSelectedPortal] = useState<Portal>(null);
+  const [selectedPortal, setSelectedPortal] = useState(null);
 
   if (selectedPortal === 'patient') {
     return <PatientPortal />;
@@ -38,6 +36,7 @@ function App() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {/* Patient Portal */}
           <button
             onClick={() => setSelectedPortal('patient')}
             className="group bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 p-8 text-left border-2 border-transparent hover:border-blue-600"
@@ -51,12 +50,18 @@ function App() {
             </p>
             <div className="flex items-center text-blue-600 font-semibold">
               Enter Portal
-              <svg className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg
+                className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </div>
           </button>
 
+          {/* Health Worker Portal */}
           <button
             onClick={() => setSelectedPortal('health-worker')}
             className="group bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 p-8 text-left border-2 border-transparent hover:border-green-600"
@@ -70,12 +75,18 @@ function App() {
             </p>
             <div className="flex items-center text-green-600 font-semibold">
               Enter Portal
-              <svg className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg
+                className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </div>
           </button>
 
+          {/* Doctor Portal */}
           <button
             onClick={() => setSelectedPortal('doctor')}
             className="group bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 p-8 text-left border-2 border-transparent hover:border-blue-600"
@@ -89,12 +100,18 @@ function App() {
             </p>
             <div className="flex items-center text-blue-600 font-semibold">
               Enter Portal
-              <svg className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg
+                className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </div>
           </button>
 
+          {/* Admin Portal */}
           <button
             onClick={() => setSelectedPortal('admin')}
             className="group bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 p-8 text-left border-2 border-transparent hover:border-green-600"
@@ -108,7 +125,12 @@ function App() {
             </p>
             <div className="flex items-center text-green-600 font-semibold">
               Enter Portal
-              <svg className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg
+                className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </div>

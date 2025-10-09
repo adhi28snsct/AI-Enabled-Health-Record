@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { BarChart3, Users, AlertTriangle, TrendingUp, Download, Calendar, MapPin } from 'lucide-react';
 import { mockAnalyticsData } from '../lib/mockData';
 
@@ -12,6 +12,7 @@ export default function AdminPortal() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-50 border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-4">
@@ -26,13 +27,17 @@ export default function AdminPortal() {
         </div>
       </header>
 
+      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Overview Section */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Public Health Overview</h2>
           <p className="text-gray-600">Real-time health analytics and trends across all regions</p>
         </div>
 
+        {/* Stat Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Total Patients */}
           <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-600">
             <div className="flex items-center justify-between mb-2">
               <Users className="w-8 h-8 text-blue-600" />
@@ -47,6 +52,7 @@ export default function AdminPortal() {
             </div>
           </div>
 
+          {/* Active Patients */}
           <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-green-600">
             <div className="flex items-center justify-between mb-2">
               <Users className="w-8 h-8 text-green-600" />
@@ -61,6 +67,7 @@ export default function AdminPortal() {
             </div>
           </div>
 
+          {/* High Risk Patients */}
           <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-orange-600">
             <div className="flex items-center justify-between mb-2">
               <AlertTriangle className="w-8 h-8 text-orange-600" />
@@ -75,6 +82,7 @@ export default function AdminPortal() {
             </div>
           </div>
 
+          {/* Critical Alerts */}
           <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-red-600">
             <div className="flex items-center justify-between mb-2">
               <AlertTriangle className="w-8 h-8 text-red-600" />
@@ -88,7 +96,9 @@ export default function AdminPortal() {
           </div>
         </div>
 
+        {/* Trends and Disease Prevalence */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Patient Trends */}
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Patient & Visit Trends</h3>
             <div className="space-y-4">
@@ -112,54 +122,30 @@ export default function AdminPortal() {
             </div>
           </div>
 
+          {/* Disease Prevalence */}
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Disease Prevalence</h3>
             <div className="space-y-4">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">Hypertension</span>
-                  <span className="text-sm font-semibold text-red-600">
-                    {mockAnalyticsData.hypertensionPrevalence}%
-                  </span>
+              {[
+                { name: 'Hypertension', color: 'red', value: mockAnalyticsData.hypertensionPrevalence },
+                { name: 'Anemia', color: 'orange', value: mockAnalyticsData.anemiaPrevalence },
+                { name: 'Diabetes', color: 'yellow', value: mockAnalyticsData.diabetesPrevalence },
+              ].map((disease) => (
+                <div key={disease.name}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700">{disease.name}</span>
+                    <span className={`text-sm font-semibold text-${disease.color}-600`}>
+                      {disease.value}%
+                    </span>
+                  </div>
+                  <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className={`absolute top-0 left-0 h-full bg-gradient-to-r from-${disease.color}-500 to-${disease.color}-600 rounded-full`}
+                      style={{ width: `${disease.value}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="absolute top-0 left-0 h-full bg-gradient-to-r from-red-500 to-red-600 rounded-full"
-                    style={{ width: `${mockAnalyticsData.hypertensionPrevalence}%` }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">Anemia</span>
-                  <span className="text-sm font-semibold text-orange-600">
-                    {mockAnalyticsData.anemiaPrevalence}%
-                  </span>
-                </div>
-                <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="absolute top-0 left-0 h-full bg-gradient-to-r from-orange-500 to-orange-600 rounded-full"
-                    style={{ width: `${mockAnalyticsData.anemiaPrevalence}%` }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">Diabetes</span>
-                  <span className="text-sm font-semibold text-yellow-600">
-                    {mockAnalyticsData.diabetesPrevalence}%
-                  </span>
-                </div>
-                <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="absolute top-0 left-0 h-full bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-full"
-                    style={{ width: `${mockAnalyticsData.diabetesPrevalence}%` }}
-                  />
-                </div>
-              </div>
-
+              ))}
               <div className="pt-4 border-t">
                 <p className="text-xs text-gray-600">
                   Prevalence rates calculated from diagnosed cases within the active patient population.
@@ -169,7 +155,9 @@ export default function AdminPortal() {
           </div>
         </div>
 
+        {/* Region & Age Distribution */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Regional Distribution */}
           <div className="bg-white rounded-xl shadow-sm p-6">
             <div className="flex items-center gap-2 mb-4">
               <MapPin className="w-5 h-5 text-green-600" />
@@ -199,6 +187,7 @@ export default function AdminPortal() {
             </div>
           </div>
 
+          {/* Age Distribution */}
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Age Distribution</h3>
             <div className="space-y-3">
@@ -224,6 +213,7 @@ export default function AdminPortal() {
           </div>
         </div>
 
+        {/* Report Generator */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <div className="flex items-center gap-2 mb-6">
             <Download className="w-5 h-5 text-blue-600" />
