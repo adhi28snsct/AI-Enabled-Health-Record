@@ -1,7 +1,5 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
-
-// Use env secret or fallback to a default
 const JWT_SECRET = process.env.JWT_SECRET || "supersecretkey";
 
 export const authMiddleware = async (req, res, next) => {
@@ -21,7 +19,7 @@ export const authMiddleware = async (req, res, next) => {
     const user = await User.findById(decoded.id).select("-password");
     if (!user) return res.status(401).json({ message: "User not found" });
 
-    req.user = user; // attach user to request
+    req.user = user; 
     next();
   } catch (err) {
     console.error("JWT verification error:", err.message);
