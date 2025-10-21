@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import backgroundImage from "../assets/home.png";
+import { setAuthToken } from "../api/api"; // Axios token helper
+import { useAuth } from "../api/authContext"; // Context hook
 
 const Login = () => {
   const [form, setForm] = useState({
@@ -12,6 +14,7 @@ const Login = () => {
   });
 
   const navigate = useNavigate();
+  const { setUser, setToken } = useAuth();
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -34,10 +37,25 @@ const Login = () => {
 
       const data = await res.json();
 
-      if (res.ok) {
-        // Save token and user info
+      if (res.ok && data.token) {
+        const userData = {
+          _id: data.user._id, // ✅ use _id to match backend and context
+          name: data.user.name,
+          role: data.user.role,
+        };
+
+        // Save to localStorage
         localStorage.setItem("token", data.token);
-        localStorage.setItem("userId", data.user.id);
+        localStorage.setItem("userId", userData._id); // ✅ match AuthContext
+        localStorage.setItem("name", userData.name);
+        localStorage.setItem("role", userData.role);
+
+        // Save to context
+        setUser(userData);
+        setToken(data.token);
+
+        // Attach token to Axios
+        setAuthToken(data.token);
 
         toast.success("Login successful!", {
           style: { backgroundColor: "#fff", color: "#000" },

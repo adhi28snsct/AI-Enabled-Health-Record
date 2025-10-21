@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Menu, X, Heart, FileText, User, Activity, AlertCircle, Calendar, Pill, FlaskConical } from "lucide-react";
-import { api, setAuthToken } from "../lib/api";
+import { api, setAuthToken } from "../api/api";
 
 export default function PatientPortal() {
   const [currentPage, setCurrentPage] = useState("dashboard");

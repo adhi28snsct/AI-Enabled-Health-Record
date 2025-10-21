@@ -1,24 +1,22 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./api/authContext"; // ✅ use full provider
 
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import PatientPortal from './pages/PatientPortal';
-import HealthWorkerPortal from './pages/HealthWorkerPortal';
-import DoctorPortal from './pages/DoctorPortal';
-import AdminPortal from './pages/AdminPortal';
-import Navbar from './components/NavBar';
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import PatientPortal from "./pages/PatientPortal";
+import HealthWorkerPortal from "./pages/HealthWorkerPortal";
+import DoctorPortal from "./pages/DoctorPortal";
+import AdminPortal from "./pages/AdminPortal";
+
+import GlobalLayout from "./layouts/GlobalLayout";
 
 function App() {
   return (
-    <BrowserRouter>
-      <div className="min-h-screen bg-gray-50">
-        {/* Global Navigation */}
-        <Navbar />
-
-        {/* Page Content */}
-        <main className="p-4">
-          <Routes>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route element={<GlobalLayout />}>
             {/* Public Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
@@ -29,10 +27,10 @@ function App() {
             <Route path="/health-worker" element={<HealthWorkerPortal />} />
             <Route path="/doctor" element={<DoctorPortal />} />
             <Route path="/admin" element={<AdminPortal />} />
-          </Routes>
-        </main>
-      </div>
-    </BrowserRouter>
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 

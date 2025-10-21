@@ -72,11 +72,11 @@ export const loginUser = async (req, res) => {
       message: "Login successful",
       token,
       user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+  _id: user._id, // ✅ use _id to match frontend context
+  name: user.name,
+  email: user.email,
+  role: user.role,
+},
     });
 
   } catch (err) {

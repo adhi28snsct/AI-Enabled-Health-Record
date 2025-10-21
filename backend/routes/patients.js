@@ -9,13 +9,18 @@ import {
   getPatientAlerts,
   getPatientAISummary,
 } from "../controllers/patientController.js";
+
 const router = express.Router();
-router.get("/:id", authMiddleware, getPatientProfile);
-router.patch("/:id", authMiddleware, updatePatientProfile);
-router.get("/:id/records", authMiddleware, getPatientRecords);
-router.get("/:id/prescriptions", authMiddleware, getPatientPrescriptions);
-router.get("/:id/lab-reports", authMiddleware, getPatientLabReports);
-router.get("/:id/alerts", authMiddleware, getPatientAlerts);
-router.get("/:id/ai-summary", authMiddleware, getPatientAISummary);
+
+// 👤 Patient Routes — All protected and token-based
+
+router.get("/profile", authMiddleware, getPatientProfile);
+router.patch("/profile", authMiddleware, updatePatientProfile);
+
+router.get("/records", authMiddleware, getPatientRecords);
+router.get("/prescriptions", authMiddleware, getPatientPrescriptions);
+router.get("/lab-reports", authMiddleware, getPatientLabReports);
+router.get("/alerts", authMiddleware, getPatientAlerts);
+router.get("/ai-summary", authMiddleware, getPatientAISummary);
 
 export default router;

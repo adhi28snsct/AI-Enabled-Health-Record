@@ -1,11 +1,5 @@
-import { useState } from 'react';
-import {
-  Search,
-  Activity,
-  Calendar,
-  Plus,
-  TrendingUp,
-} from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Activity, Calendar, Plus, TrendingUp } from 'lucide-react';
 
 import PatientCard from '../components/PatientCard';
 import VitalsPanel from '../components/VitalsPannel';
@@ -13,37 +7,174 @@ import PrescriptionForm from '../components/PrescriptionForm';
 import AIDiagnosticPanel from '../components/AiDiagonisticPanel';
 
 import {
-  mockPatientsList,
-  mockVitals,
-  mockPrescriptions,
-  mockHealthRecords,
-  mockLabReports,
-  mockAIDiagnostics,
-} from '../lib/mockData';
+  getAllPatients,
+  getVitals,
+  getPrescriptions,
+  addPrescription,
+  getLabReports,
+  getAISummary,
+  getPatientAlerts,
+  addVitals
+} from '../api/doctor';
 
 export default function DoctorPortal() {
-  const [selectedPatientId, setSelectedPatientId] = useState('1');
+  const [patients, setPatients] = useState([]);
+  const [selectedPatientId, setSelectedPatientId] = useState(null);
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [vitals, setVitals] = useState(null);
+  const [showVitalsForm, setShowVitalsForm] = useState(false);
+  const [vitalsForm, setVitalsForm] = useState({
+    blood_pressure_systolic: '',
+    blood_pressure_diastolic: '',
+    heart_rate: '',
+    temperature: '',
+    respiration_rate: '', // ✅ Add this line
+    oxygen_saturation: '',
+    symptoms: '',
+  });
+  const [labReports, setLabReports] = useState([]);
+  const [aiSummary, setAISummary] = useState(null);
+  const [prescriptions, setPrescriptions] = useState([]);
+  const [alerts, setAlerts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showPrescriptionForm, setShowPrescriptionForm] = useState(false);
   const [prescriptionForm, setPrescriptionForm] = useState({
-    medication: '',
+    medication_name: '',
     dosage: '',
     frequency: '',
     duration: '',
-    notes: '',
+    notes: ''
   });
 
-  const sortedPatients = [...mockPatientsList].sort((a, b) => {
+  useEffect(() => {
+    getAllPatients()
+      .then((res) => {
+        setPatients(res.data);
+      })
+      .catch((err) => console.error("Patient fetch error:", err));
+  }, []);
+  useEffect(() => {
+    if (!selectedPatientId || patients.length === 0) return;
+
+    const patient = patients.find((p) => p._id === selectedPatientId);
+    setSelectedPatient(patient || null);
+
+    // Fetch all patient-specific data
+    Promise.all([
+      getVitals(selectedPatientId),
+      getLabReports(selectedPatientId),
+      getAISummary(selectedPatientId),
+      getPrescriptions(selectedPatientId),
+      getPatientAlerts(selectedPatientId),
+    ])
+      .then(([vitalsRes, labsRes, aiRes, prescriptionsRes, alertsRes]) => {
+        const sortedVitals = [...vitalsRes.data].sort(
+          (a, b) => new Date(b.recorded_at) - new Date(a.recorded_at)
+        );
+        setVitals(sortedVitals[0] || null);
+        setLabReports(labsRes.data || []);
+        setAISummary(aiRes.data || null);
+        setPrescriptions(prescriptionsRes.data || []);
+        setAlerts(alertsRes.data || []);
+      })
+      .catch((err) => {
+        console.error("Error fetching patient data:", err);
+        setVitals(null);
+        setLabReports([]);
+        setAISummary(null);
+        setPrescriptions([]);
+        setAlerts([]);
+      });
+  }, [selectedPatientId, patients]);
+  const handlePrescriptionSubmit = async (e) => {
+    e.preventDefault();
+
+    // 1. Get the doctor's ID from localStorage
+    const loggedInDoctorId = localStorage.getItem("userId"); // ✅ correct key
+
+    // 2. Add a check to make sure the ID exists
+    if (!loggedInDoctorId) {
+      alert("Could not find Doctor ID. Please log in again.");
+      return; // Stop the function if no ID is found
+    }
+
+    // 3. Build the payload with the correct doctor ID
+    const payload = {
+      patient: selectedPatientId,
+      doctor: loggedInDoctorId, // Use the variable you just created
+      ...prescriptionForm, // Switched to the spread operator for cleaner code
+      prescribed_at: new Date().toISOString(), // Using ISOString is better for databases
+    };
+
+    try {
+      await addPrescription(payload);
+      alert("Prescription added successfully!");
+
+      setPrescriptionForm({
+        medication_name: "",
+        dosage: "",
+        frequency: "",
+        duration: "",
+        notes: "",
+      });
+      setShowPrescriptionForm(false);
+      // Refresh the prescription list for the currently selected patient
+      getPrescriptions(selectedPatientId).then((res) => setPrescriptions(res.data));
+
+    } catch (error) {
+      console.error("Failed to add prescription:", error);
+      alert("There was an error saving the prescription. Please try again.");
+    }
+  };
+  const handleVitalsSubmit = async (e) => {
+    e.preventDefault();
+
+    try {
+      // Assuming you have an API helper similar to addPrescription
+      await addVitals({
+        patient: selectedPatientId,
+        blood_pressure: `${vitalsForm.blood_pressure_systolic}/${vitalsForm.blood_pressure_diastolic}`,
+        heart_rate: vitalsForm.heart_rate,
+        temperature: vitalsForm.temperature,
+        respiration_rate: vitalsForm.respiration_rate,
+        symptoms: vitalsForm.symptoms,
+        recorded_at: new Date().toISOString()
+      });
+
+      alert("Vitals added successfully!");
+
+      setShowVitalsForm(false);
+      setVitalsForm({
+        blood_pressure_systolic: '',
+        blood_pressure_diastolic: '',
+        heart_rate: '',
+        temperature: '',
+        respiration_rate: '', // ✅ Add this line
+        oxygen_saturation: '',
+        symptoms: '',
+      });
+
+      // Refresh vitals after adding
+      getVitals(selectedPatientId).then((res) => {
+        const sorted = [...res.data].sort(
+          (a, b) => new Date(b.recorded_at) - new Date(a.recorded_at)
+        );
+        setVitals(sorted[0] || null);
+      });
+    } catch (err) {
+      console.error("Error adding vitals:", err);
+      alert("Failed to add vitals. Please try again.");
+    }
+  };
+
+
+  const sortedPatients = [...patients].sort((a, b) => {
     const riskOrder = { critical: 4, high: 3, moderate: 2, low: 1 };
     return riskOrder[b.risk_level] - riskOrder[a.risk_level];
   });
-
   const filteredPatients = sortedPatients.filter((patient) =>
-    patient.full_name.toLowerCase().includes(searchQuery.toLowerCase())
+    (patient.name || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  const selectedPatient = mockPatientsList.find((p) => p.id === selectedPatientId);
-  const latestVitals = mockVitals[0];
 
   const getRiskBadge = (risk) => {
     switch (risk) {
@@ -68,19 +199,6 @@ export default function DoctorPortal() {
       day: 'numeric',
     });
 
-  const handlePrescriptionSubmit = (e) => {
-    e.preventDefault();
-    alert('Prescription added successfully!');
-    setPrescriptionForm({
-      medication: '',
-      dosage: '',
-      frequency: '',
-      duration: '',
-      notes: '',
-    });
-    setShowPrescriptionForm(false);
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -90,9 +208,26 @@ export default function DoctorPortal() {
             <Activity className="w-8 h-8 text-blue-600" />
             <h1 className="text-xl font-bold text-gray-900">Doctor Portal</h1>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-600">Dr. Sarah Johnson</span>
-            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">SJ</div>
+
+          <div className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 cursor-pointer">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6 text-gray-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+
+            <span className="text-sm font-medium text-gray-700">
+              Dr. {localStorage.getItem("name") || "Unknown"}
+            </span>
           </div>
         </div>
       </header>
@@ -117,9 +252,9 @@ export default function DoctorPortal() {
           <div className="divide-y">
             {filteredPatients.map((patient) => (
               <PatientCard
-                key={patient.id}
+                key={patient._id}
                 patient={patient}
-                isSelected={selectedPatientId === patient.id}
+                isSelected={selectedPatientId === patient._id}
                 onSelect={setSelectedPatientId}
                 getRiskBadge={getRiskBadge}
               />
@@ -135,19 +270,107 @@ export default function DoctorPortal() {
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h2 className="text-2xl font-bold text-gray-900">{selectedPatient.full_name}</h2>
+                    <h2 className="text-2xl font-bold text-gray-900">{selectedPatient.name}</h2>
                     <p className="text-gray-600">
-                      {selectedPatient.gender} · {new Date().getFullYear() - new Date(selectedPatient.date_of_birth).getFullYear()} years old · DOB: {formatDate(selectedPatient.date_of_birth)}
+                      {selectedPatient.gender} · {new Date().getFullYear() - new Date(selectedPatient.dob).getFullYear()} years old · DOB: {formatDate(selectedPatient.dob)}
                     </p>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${getRiskBadge(selectedPatient.risk_level)}`}>
-                    {selectedPatient.risk_level} risk
-                  </span>
+                  {selectedPatient.risk_level ? (
+                    <span className={`... ${getRiskBadge(selectedPatient.risk_level)}`}>
+                      {selectedPatient.risk_level} risk
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-200 text-gray-600">
+                      No risk data
+                    </span>
+                  )}
                 </div>
               </div>
 
               {/* Vitals */}
-              <VitalsPanel vitals={latestVitals} />
+              <VitalsPanel
+                vitals={vitals}
+                onAddVitals={() => setShowVitalsForm(true)}
+              />
+              {showVitalsForm && (
+                <form
+                  onSubmit={handleVitalsSubmit}
+                  className="bg-white rounded-lg shadow-sm p-6 mt-4"
+                >
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Add Vitals</h3>
+
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <input
+                      type="number"
+                      placeholder="Systolic Pressure"
+                      value={vitalsForm.blood_pressure_systolic}
+                      onChange={(e) => setVitalsForm({ ...vitalsForm, blood_pressure_systolic: e.target.value })}
+                      className="border p-2 rounded"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Diastolic Pressure"
+                      value={vitalsForm.blood_pressure_diastolic}
+                      onChange={(e) => setVitalsForm({ ...vitalsForm, blood_pressure_diastolic: e.target.value })}
+                      className="border p-2 rounded"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Heart Rate"
+                      value={vitalsForm.heart_rate}
+                      onChange={(e) => setVitalsForm({ ...vitalsForm, heart_rate: e.target.value })}
+                      className="border p-2 rounded"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Temperature (°F)"
+                      value={vitalsForm.temperature}
+                      onChange={(e) => setVitalsForm({ ...vitalsForm, temperature: e.target.value })}
+                      className="border p-2 rounded"
+                    />
+                    <input
+                      type="number"
+                      placeholder="SpO₂ (%)"
+                      value={vitalsForm.oxygen_saturation}
+                      onChange={(e) => setVitalsForm({ ...vitalsForm, oxygen_saturation: e.target.value })}
+                      className="border p-2 rounded"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Respiration Rate (breaths/min)"
+                      value={vitalsForm.respiration_rate}
+                      onChange={(e) =>
+                        setVitalsForm({ ...vitalsForm, respiration_rate: e.target.value })
+                      }
+                      className="border p-2 rounded"
+                    />
+                  </div>
+
+                  <textarea
+                    placeholder="Symptoms (optional)"
+                    value={vitalsForm.symptoms}
+                    onChange={(e) => setVitalsForm({ ...vitalsForm, symptoms: e.target.value })}
+                    className="border p-2 rounded w-full mb-4"
+                  />
+
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowVitalsForm(false)}
+                      className="border px-4 py-2 rounded"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
+
 
               {/* Prescriptions */}
               <div className="bg-white rounded-lg shadow-sm p-6">
@@ -170,57 +393,36 @@ export default function DoctorPortal() {
                   />
                 )}
                 <div className="space-y-3">
-                  {mockPrescriptions.map((prescription) => (
-                    <div key={prescription.id} className="p-4 border border-gray-200 rounded-lg">
+                  {prescriptions.map((prescription) => (
+                    <div key={prescription._id} className="p-4 border border-gray-200 rounded-lg">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <h4 className="font-semibold text-gray-900">{prescription.medication_name}</h4>
-                          <div className="space-y-1 text-sm">
-                            <p className="text-gray-700">
-                              <span className="font-medium">Dosage:</span> {prescription.dosage} · {prescription.frequency}
-                            </p>
-                            <p className="text-gray-700">
-                              <span className="font-medium">Duration:</span> {prescription.duration}
-                            </p>
-                            {prescription.notes && <p className="text-gray-600">{prescription.notes}</p>}
-                          </div>
+                          <p className="text-gray-700 text-sm">
+                            <span className="font-medium">Dosage:</span> {prescription.dosage} · {prescription.frequency}
+                          </p>
+                          <p className="text-gray-700 text-sm">
+                            <span className="font-medium">Duration:</span> {prescription.duration}
+                          </p>
+                          {prescription.notes && (
+                            <p className="text-gray-600 text-sm">{prescription.notes}</p>
+                          )}
                         </div>
-                        <span className="text-xs text-gray-500">{formatDate(prescription.prescribed_at)}</span>
+                        <span className="text-xs text-gray-500">
+                          {formatDate(prescription.prescribed_at)}
+                        </span>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Medical History */}
+              {/* Lab Reports */}
               <div className="bg-white rounded-lg shadow-sm p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <Calendar className="w-5 h-5 text-blue-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">Medical History</h3>
-                </div>
-                <div className="space-y-3">
-                  {mockHealthRecords.map((record) => (
-                    <div key={record.id} className="p-4 bg-gray-50 rounded-lg">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <h4 className="font-semibold text-gray-900">{record.title}</h4>
-                          <p className="text-sm text-gray-500">{record.recorded_by}</p>
-                        </div>
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded">
-                          {record.record_type}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-700 mb-2">{record.description}</p>
-                      <p className="text-xs text-gray-500">{formatDate(record.recorded_at)}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-                            <div className="bg-white rounded-lg shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Lab Reports</h3>
                 <div className="space-y-4">
-                  {mockLabReports.map((report) => (
-                    <div key={report.id} className="border border-gray-200 rounded-lg p-4">
+                  {labReports.map((report) => (
+                    <div key={report._id} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex justify-between items-start mb-3">
                         <div>
                           <h4 className="font-semibold text-gray-900">{report.test_name}</h4>
@@ -229,7 +431,7 @@ export default function DoctorPortal() {
                         <p className="text-sm text-gray-500">{formatDate(report.test_date)}</p>
                       </div>
                       <div className="grid gap-2 grid-cols-2">
-                        {Object.entries(report.results).slice(0, 4).map(([key, value]) => (
+                        {Object.entries(report.results || {}).slice(0, 4).map(([key, value]) => (
                           <div key={key} className="bg-gray-50 rounded p-2">
                             <div className="text-xs text-gray-600">{key}</div>
                             <div className={`text-sm font-semibold ${value.status === 'high' ? 'text-red-600' : 'text-gray-900'}`}>
@@ -242,12 +444,18 @@ export default function DoctorPortal() {
                   ))}
                 </div>
               </div>
-                            <div className="bg-white rounded-lg shadow-sm p-6">
+
+              {/* AI Diagnostic Suggestions */}
+              <div className="bg-white rounded-lg shadow-sm p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <TrendingUp className="w-5 h-5 text-purple-600" />
                   <h3 className="text-lg font-semibold text-gray-900">AI Diagnostic Suggestions</h3>
                 </div>
-                <AIDiagnosticPanel diagnostics={mockAIDiagnostics} getRiskColor={getRiskColor} />
+                {aiSummary ? (
+                  <AIDiagnosticPanel diagnostics={aiSummary} getRiskColor={getRiskColor} />
+                ) : (
+                  <p className="text-sm text-gray-500">No AI summary available.</p>
+                )}
               </div>
             </div>
           ) : (
