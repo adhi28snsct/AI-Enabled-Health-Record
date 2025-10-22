@@ -10,32 +10,47 @@ import AISummary from "../models/AISummary.js";
 /* -------------------------------------------------------------------------- */
 
 // Get patient profile with AI risk level
+
+
+// This assumes this function is located in the backend/controllers/patientController.js file
+
 export const getPatientProfile = async (req, res) => {
-  try {
-    const userId = req.user?._id || req.params.userId;
+  try {
+    // 💡 CRITICAL FIX: Prioritize the ID from the URL parameter, otherwise use the ID from the token.
+    const userId = req.params.userId || req.user?._id; 
+    
     if (!userId) return res.status(400).json({ message: "User ID not provided" });
 
-    const user = await User.findById(userId).select("-password").lean();
-    if (!user) return res.status(404).json({ message: "User not found" });
+    // 1. Fetch user profile
+    const user = await User.findById(userId).select("-password").lean();
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    const ai = await AISummary.findOne({ patient: userId });
 
-    const risks = [
-      ai?.diabetes_risk,
-      ai?.anemia_risk,
-      ai?.hypertension_risk,
-      ai?.cardiac_risk,
-    ].filter(Boolean);
+    // 2. Fetch AI Summary
+    const ai = await AISummary.findOne({ patient: userId });
 
-    const riskOrder = ["low", "moderate", "high", "critical"];
-    const highestRisk =
-      risks.sort((a, b) => riskOrder.indexOf(b) - riskOrder.indexOf(a))[0] || "unknown";
+    // 3. Calculate Highest Risk Level
+    const risks = [
+      ai?.diabetes_risk,
+      ai?.anemia_risk,
+      ai?.hypertension_risk,
+      ai?.cardiac_risk,
+    ].filter(r => typeof r === 'number'); 
 
-    res.json({ ...user, risk_level: highestRisk });
-  } catch (err) {
+    const maxRiskPercentage = risks.length > 0 ? Math.max(...risks) : 0;
+    
+    let highestRiskLevel = "unknown";
+    if (maxRiskPercentage > 75) highestRiskLevel = "critical";
+    else if (maxRiskPercentage > 50) highestRiskLevel = "high";
+    else if (maxRiskPercentage > 25) highestRiskLevel = "moderate";
+    else if (maxRiskPercentage > 0) highestRiskLevel = "low";
+    
+    // 4. Send combined response
+    res.json({ ...user, risk_level: highestRiskLevel }); 
+  } catch (err) {
     console.error("❌ [getPatientProfile] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
+    res.status(500).json({ message: "Server error" });
+  }
 };
 
 // Update patient profile

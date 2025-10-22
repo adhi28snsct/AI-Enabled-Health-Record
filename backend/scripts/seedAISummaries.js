@@ -3,48 +3,47 @@ import dotenv from "dotenv";
 import User from "./models/User.js";
 import AISummary from "./models/AISummary.js";
 
-dotenv.config(); // Load your .env file with MONGODB_URI
-
+dotenv.config();
 const MONGODB_URI = process.env.MONGODB_URI || "your-atlas-uri";
 
-const riskLevels = ["low", "moderate", "high", "critical"];
-
-function getRandomRisk() {
-  return riskLevels[Math.floor(Math.random() * riskLevels.length)];
+// Function to generate a random risk percentage between 10 and 85
+function getRandomPercentage() {
+    return Math.floor(Math.random() * (85 - 10 + 1) + 10);
 }
 
 async function seedAISummaries() {
-  try {
-    await mongoose.connect(MONGODB_URI);
-    console.log("✅ Connected to MongoDB Atlas");
+    try {
+        await mongoose.connect(MONGODB_URI);
+        console.log("✅ Connected to MongoDB Atlas");
 
-    const patients = await User.find({ role: "patient" });
+        const patients = await User.find({ role: "patient" });
 
-    for (const patient of patients) {
-      const exists = await AISummary.findOne({ patient: patient._id });
-      if (exists) {
-        console.log(`🔁 AI summary already exists for ${patient.name}`);
-        continue;
-      }
+        for (const patient of patients) {
+            const exists = await AISummary.findOne({ patient: patient._id });
+            if (exists) {
+                console.log(`🔁 AI summary already exists for ${patient.name}`);
+                continue;
+            }
 
-      const summary = new AISummary({
-        patient: patient._id,
-        diabetes_risk: getRandomRisk(),
-        anemia_risk: getRandomRisk(),
-        hypertension_risk: getRandomRisk(),
-        cardiac_risk: getRandomRisk(),
-      });
+            // --- NOW STORING NUMBERS INSTEAD OF STRINGS ---
+            const summary = new AISummary({
+                patient: patient._id,
+                diabetes_risk: getRandomPercentage(),
+                anemia_risk: getRandomPercentage(),
+                hypertension_risk: getRandomPercentage(),
+                cardiac_risk: getRandomPercentage(),
+            });
 
-      await summary.save();
-      console.log(`✅ AI summary created for ${patient.name}`);
+            await summary.save();
+            console.log(`✅ AI summary created for ${patient.name} with dynamic scores.`);
+        }
+
+        console.log("🎉 Seeding complete");
+        mongoose.disconnect();
+    } catch (err) {
+        console.error("❌ Error seeding AI summaries:", err.message);
+        mongoose.disconnect();
     }
-
-    console.log("🎉 Seeding complete");
-    mongoose.disconnect();
-  } catch (err) {
-    console.error("❌ Error seeding AI summaries:", err.message);
-    mongoose.disconnect();
-  }
 }
 
 seedAISummaries();
