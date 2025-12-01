@@ -6,6 +6,7 @@ import VitalsPanel from '../components/VitalsPannel';
 import PrescriptionForm from '../components/PrescriptionForm';
 import AIDiagnosticPanel from '../components/AiDiagonisticPanel';
 import LabReportForm from '../components/LabReportForm'; 
+import AppointmentQueue from '../components/AppointmentQueue';
 
 // 💡 CRITICAL FIX: Ensure all C.R.U.D. functions are imported
 import {
@@ -337,6 +338,11 @@ export default function DoctorPortal() {
 
                 {/* Center Panel: Patient Details */}
                 <div className="flex-1 overflow-y-auto">
+    <div className="p-6 space-y-6"> 
+        <AppointmentQueue 
+            selectedDoctorId={localStorage.getItem('userId')} 
+        />
+    </div>
                     {selectedPatient ? (
                         <div className="p-6 space-y-6">
                             {/* Patient Info */}

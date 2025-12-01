@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Menu, X, Heart, FileText, User, Activity, AlertCircle, Calendar, Pill, FlaskConical } from "lucide-react";
 import { api, setAuthToken } from "../api/api";
+import AppointmentBooker from "../components/AppointmentBooker";
 
 export default function PatientPortal() {
   const [currentPage, setCurrentPage] = useState("dashboard");
@@ -71,6 +72,29 @@ export default function PatientPortal() {
       alert("Failed to update profile.");
     }
   };
+  // Inside the PatientPortal function, before the main return:
+const calculateOverallRisk = (aiSummary) => {
+    // 1. Get all calculated risk percentages (excluding nulls or zeros)
+    const risks = [
+        aiSummary?.diabetes_risk, 
+        aiSummary?.hypertension_risk, 
+        aiSummary?.anemia_risk, 
+        aiSummary?.cardiac_risk
+    ].filter(r => r > 0);
+
+    if (risks.length === 0) return 'low'; // Default if no scores are available
+
+    // 2. Find the highest risk percentage
+    const maxRisk = Math.max(...risks);
+    
+    // 3. Map the highest percentage to a categorical level (for the badge color/triage)
+    if (maxRisk >= 70) return "critical"; 
+    if (maxRisk >= 50) return "high";
+    if (maxRisk >= 30) return "moderate";
+    return "low";
+};
+
+// ... (Your existing utility functions: getRiskColor, getRiskBg, etc., follow here)
 
   const getRiskColor = (risk) => {
     if (risk < 30) return "text-green-600";
@@ -113,6 +137,7 @@ export default function PatientPortal() {
       minute: "2-digit",
     });
   };
+  
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -193,6 +218,11 @@ export default function PatientPortal() {
                 ))}
               </div>
             </div>
+            {/* 💡 INSERT APPOINTMENT BOOKER HERE */}
+        <AppointmentBooker 
+            patientId={userId} // Pass the patient's ID
+            currentRiskLevel={calculateOverallRisk(aiSummary)} // Pass the calculated risk level
+        />
 
             <div className="bg-white rounded-xl shadow-sm p-6">
               <div className="flex items-center gap-2 mb-4">
