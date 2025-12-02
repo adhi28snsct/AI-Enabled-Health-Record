@@ -6,11 +6,6 @@ import Alert from "../models/Alert.js";
 import AISummary from "../models/AISummary.js";
 import { triggerAIHealthSummary } from "../utils/aiService.js"; 
 
-/* -------------------------------------------------------------------------- */
-/*                             PATIENT MANAGEMENT                             */
-/* -------------------------------------------------------------------------- */
-
-// Get all patients with AI risk enrichment
 export const getAllPatients = async (req, res) => {
   try {
     const patients = await User.find({ role: "patient" }).select("-password");
@@ -40,10 +35,6 @@ export const getAllPatients = async (req, res) => {
   }
 };
 
-/* -------------------------------------------------------------------------- */
-/*                                  VITALS                                    */
-/* -------------------------------------------------------------------------- */
-
 export const getPatientVitals = async (req, res) => {
   try {
     const { patientId } = req.params;
@@ -55,7 +46,6 @@ export const getPatientVitals = async (req, res) => {
   }
 };
 
-// CREATE VITALS CONTROLLER (AI TRIGGER POINT 1)
 export const addPatientVitals = async (req, res) => {
   console.log("📥 Received vitals payload:", req.body); 
 
@@ -68,8 +58,6 @@ export const addPatientVitals = async (req, res) => {
 
     const vitals = new Vitals(req.body);
     const saved = await vitals.save();
-
-    // 🚨 CRITICAL FIX: Trigger AI Analysis after saving new Vitals
     await triggerAIHealthSummary(patientId);
 
     res.status(201).json(saved);
@@ -99,9 +87,6 @@ export const deleteVitals = async (req, res) => {
   }
 };
 
-/* -------------------------------------------------------------------------- */
-/*                              PRESCRIPTIONS                                 */
-/* -------------------------------------------------------------------------- */
 
 export const getPatientPrescriptions = async (req, res) => {
   try {
@@ -159,9 +144,6 @@ export const deletePrescription = async (req, res) => {
   }
 };
 
-/* -------------------------------------------------------------------------- */
-/*                               LAB REPORTS                                  */
-/* -------------------------------------------------------------------------- */
 
 export const getPatientLabReports = async (req, res) => {
   try {
@@ -174,7 +156,6 @@ export const getPatientLabReports = async (req, res) => {
   }
 };
 
-// CREATE LAB REPORT CONTROLLER (AI TRIGGER POINT 2)
 export const addLabReport = async (req, res) => {
   try {
     const patientId = req.body.patient; 
@@ -186,7 +167,6 @@ export const addLabReport = async (req, res) => {
     const report = new LabReport(req.body);
     const saved = await report.save();
 
-    // 🚨 CRITICAL FIX: Trigger AI Analysis after saving Lab Report
     await triggerAIHealthSummary(patientId);
 
     res.status(201).json(saved);
@@ -215,9 +195,6 @@ export const deleteLabReport = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-/* -------------------------------------------------------------------------- */
-/*                                 AI SUMMARY                                 */
-/* -------------------------------------------------------------------------- */
 
 export const getPatientAISummary = async (req, res) => {
   try {
@@ -284,9 +261,6 @@ export const deleteAISummary = async (req, res) => {
   }
 };
 
-/* -------------------------------------------------------------------------- */
-/*                                   ALERTS                                   */
-/* -------------------------------------------------------------------------- */
 
 export const getPatientAlerts = async (req, res) => {
   try {
@@ -329,3 +303,57 @@ export const deleteAlert = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+
+export const getDoctorProfile = async (req, res) => {
+  try {
+    const doctorId = req.params.id;
+
+    const doctor = await User.findById(doctorId).select("-password");
+    if (!doctor) {
+      return res.status(404).json({ message: "Doctor not found" });
+    }
+
+    if (doctor.role !== "doctor") {
+      return res.status(400).json({ message: "User is not a doctor" });
+    }
+
+    res.json(doctor);
+  } catch (err) {
+    console.error("❌ [getDoctorProfile] Error:", err.message);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const updateDoctorProfile = async (req, res) => {
+  try {
+    const doctorId = req.params.id;
+
+    const updated = await User.findByIdAndUpdate(
+      doctorId,
+      req.body,
+      { new: true }
+    ).select("-password");
+
+    if (!updated) {
+      return res.status(404).json({ message: "Doctor not found" });
+    }
+
+    res.json(updated);
+  } catch (err) {
+    console.error("❌ [updateDoctorProfile] Error:", err.message);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const getAllDoctors = async (req, res) => {
+  try {
+    const doctors = await User.find({ role: "doctor" })
+      .select("name email phone specialization otherSpecialization availability profile_image");
+
+    res.json(doctors);
+  } catch (err) {
+    console.error("❌ [getAllDoctors] Error:", err.message);
+    res.status(500).json({ message: "Server error" });
+  }
+};    

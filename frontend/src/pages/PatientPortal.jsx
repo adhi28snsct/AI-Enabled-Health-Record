@@ -1,11 +1,32 @@
+// src/pages/PatientPortal.jsx
 import { useState, useEffect } from "react";
-import { Menu, X, Heart, FileText, User, Activity, AlertCircle, Calendar, Pill, FlaskConical } from "lucide-react";
+import {
+  Menu,
+  X,
+  Heart,
+  FileText,
+  User,
+  Activity,
+  AlertCircle,
+  Calendar,
+  Pill,
+  FlaskConical,
+} from "lucide-react";
 import { api, setAuthToken } from "../api/api";
 import AppointmentBooker from "../components/AppointmentBooker";
+import PatientNotificationsPanel from "../components/PatientNotificationsPanel";
+import NotificationBadge from "../components/NotificationBadge";
+
+// NEW: notifications loader (service)
+import { fetchNotifications } from "../services/notificationService";
 
 export default function PatientPortal() {
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // notif drawer + unread count
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const [user, setUser] = useState(null);
   const [editing, setEditing] = useState(false);
@@ -56,6 +77,33 @@ export default function PatientPortal() {
     fetchData();
   }, [token, userId]);
 
+  // --------------------------
+  // unread count loader
+  // --------------------------
+  const loadUnreadCount = async () => {
+    try {
+      const list = await fetchNotifications();
+      if (Array.isArray(list)) {
+        setUnreadCount(list.filter((n) => !n.read).length);
+      } else {
+        setUnreadCount(0);
+      }
+    } catch (err) {
+      console.error("Failed to load unread count", err);
+      setUnreadCount(0);
+    }
+  };
+
+  useEffect(() => {
+    loadUnreadCount();
+    const t = setInterval(loadUnreadCount, 30000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // --------------------------
+  // handlers & helpers
+  // --------------------------
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -72,29 +120,22 @@ export default function PatientPortal() {
       alert("Failed to update profile.");
     }
   };
-  // Inside the PatientPortal function, before the main return:
-const calculateOverallRisk = (aiSummary) => {
-    // 1. Get all calculated risk percentages (excluding nulls or zeros)
+
+  const calculateOverallRisk = (aiSummary) => {
     const risks = [
-        aiSummary?.diabetes_risk, 
-        aiSummary?.hypertension_risk, 
-        aiSummary?.anemia_risk, 
-        aiSummary?.cardiac_risk
-    ].filter(r => r > 0);
+      aiSummary?.diabetes_risk,
+      aiSummary?.hypertension_risk,
+      aiSummary?.anemia_risk,
+      aiSummary?.cardiac_risk,
+    ].filter((r) => r > 0);
 
-    if (risks.length === 0) return 'low'; // Default if no scores are available
-
-    // 2. Find the highest risk percentage
+    if (risks.length === 0) return "low";
     const maxRisk = Math.max(...risks);
-    
-    // 3. Map the highest percentage to a categorical level (for the badge color/triage)
-    if (maxRisk >= 70) return "critical"; 
+    if (maxRisk >= 70) return "critical";
     if (maxRisk >= 50) return "high";
     if (maxRisk >= 30) return "moderate";
     return "low";
-};
-
-// ... (Your existing utility functions: getRiskColor, getRiskBg, etc., follow here)
+  };
 
   const getRiskColor = (risk) => {
     if (risk < 30) return "text-green-600";
@@ -137,7 +178,6 @@ const calculateOverallRisk = (aiSummary) => {
       minute: "2-digit",
     });
   };
-  
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -149,11 +189,14 @@ const calculateOverallRisk = (aiSummary) => {
               <h1 className="text-xl font-bold text-gray-900">HealthConnect</h1>
             </div>
 
-            <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden p-2 rounded-lg hover:bg-gray-100">
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="md:hidden p-2 rounded-lg hover:bg-gray-100"
+            >
               {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
 
-            <nav className="hidden md:flex gap-6">
+            <nav className="hidden md:flex gap-6 items-center">
               {[
                 { name: "Dashboard", icon: Activity, page: "dashboard" },
                 { name: "My Records", icon: FileText, page: "records" },
@@ -169,6 +212,16 @@ const calculateOverallRisk = (aiSummary) => {
                   <item.icon className="w-5 h-5" /> {item.name}
                 </button>
               ))}
+
+              {/* Notification badge */}
+              <div className="ml-4">
+                <NotificationBadge
+                  count={unreadCount}
+                  onClick={() => {
+                    setNotifOpen(true);
+                  }}
+                />
+              </div>
             </nav>
           </div>
 
@@ -197,6 +250,30 @@ const calculateOverallRisk = (aiSummary) => {
         </div>
       </header>
 
+      {/* Notifications drawer */}
+      {notifOpen && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            right: 0,
+            width: 420,
+            height: "100vh",
+            zIndex: 2000,
+            background: "#fff",
+            boxShadow: "-6px 0 20px rgba(0,0,0,0.12)",
+          }}
+        >
+          <PatientNotificationsPanel
+            open={true}
+            onClose={() => {
+              setNotifOpen(false);
+              loadUnreadCount();
+            }}
+          />
+        </div>
+      )}
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {currentPage === "dashboard" && (
           <div className="space-y-6">
@@ -218,11 +295,8 @@ const calculateOverallRisk = (aiSummary) => {
                 ))}
               </div>
             </div>
-            {/* 💡 INSERT APPOINTMENT BOOKER HERE */}
-        <AppointmentBooker 
-            patientId={userId} // Pass the patient's ID
-            currentRiskLevel={calculateOverallRisk(aiSummary)} // Pass the calculated risk level
-        />
+
+            <AppointmentBooker patientId={userId} currentRiskLevel={calculateOverallRisk(aiSummary)} />
 
             <div className="bg-white rounded-xl shadow-sm p-6">
               <div className="flex items-center gap-2 mb-4">
@@ -283,7 +357,6 @@ const calculateOverallRisk = (aiSummary) => {
               </div>
             </div>
 
-            {/* Prescriptions */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Pill className="w-5 h-5 text-green-600" />
@@ -305,7 +378,6 @@ const calculateOverallRisk = (aiSummary) => {
               </div>
             </div>
 
-            {/* Lab Reports */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               <div className="flex items-center gap-2 mb-4">
                 <FlaskConical className="w-5 h-5 text-purple-600" />
@@ -357,6 +429,7 @@ const calculateOverallRisk = (aiSummary) => {
 
             <div className="bg-white rounded-xl shadow-sm p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
+
               <div className="grid gap-4 sm:grid-cols-2">
                 {[
                   { label: "Full Name", key: "name" },
@@ -368,53 +441,39 @@ const calculateOverallRisk = (aiSummary) => {
                   { label: "Address", key: "address" },
                 ].map(({ label, key, type }) => (
                   <div key={key}>
-                    <label className="block text-sm text-gray-600 mb-1">{label}</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-1">{label}</label>
+
                     {editing ? (
-                      <input
-                        type={type || "text"}
-                        name={key}
-                        value={formData[key] || ""}
-                        onChange={handleInputChange}
-                        className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
+                      type === "date" ? (
+                        <input
+                          type="date"
+                          name={key}
+                          value={formData[key] ? new Date(formData[key]).toISOString().slice(0, 10) : ""}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      ) : (
+                        <input
+                          type={type || "text"}
+                          name={key}
+                          value={formData[key] ?? ""}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      )
                     ) : (
-                      <p>{key === "dob" ? formatDate(user[key]) : user[key]}</p>
+                      <p className="text-gray-700">
+                        {key === "dob" ? (user[key] ? new Date(user[key]).toLocaleDateString() : "—") : user[key] ?? "—"}
+                      </p>
                     )}
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Preferences</h3>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">Preferred Language</label>
-                  {editing ? (
-                    <select
-                      name="preferred_language"
-                      value={formData.preferred_language || ""}
-                      onChange={handleInputChange}
-                      className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="en">English</option>
-                      <option value="es">Español</option>
-                      <option value="fr">Français</option>
-                      <option value="de">Deutsch</option>
-                    </select>
-                  ) : (
-                    <p>{user.preferred_language}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
             {editing && (
               <div className="flex justify-end">
-                <button
-                  onClick={handleSaveProfile}
-                  className="px-6 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700"
-                >
+                <button onClick={handleSaveProfile} className="px-6 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700">
                   Save Changes
                 </button>
               </div>

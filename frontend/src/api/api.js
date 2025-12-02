@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:5000/api";
+// Read backend API URL from Vite environment variables
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -9,7 +10,7 @@ export const api = axios.create({
   },
 });
 
-// Attach token dynamically
+// Token setter (optional)
 export const setAuthToken = (token) => {
   if (token) {
     api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
@@ -18,14 +19,11 @@ export const setAuthToken = (token) => {
   }
 };
 
-// Interceptor for debugging and token assurance
+// Attach token automatically on every request
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-    console.log("✅ Token attached to request:", token);
-  } else {
-    console.warn("⚠️ No token found in localStorage");
   }
   return config;
 });
