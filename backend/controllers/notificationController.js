@@ -76,6 +76,31 @@ export const markAllNotificationsRead = async (req, res) => {
   }
 };
 
+export const markNotificationUnread = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!validId(id)) return res.status(400).json({ message: 'Invalid id' });
+
+    const notif = await Notification.findById(id);
+    if (!notif) return res.status(404).json({ message: 'Notification not found' });
+
+    const caller = req.user;
+    if (!caller) return res.status(401).json({ message: 'Unauthorized' });
+    if (String(notif.patientId) !== String(caller._id) && caller.role !== 'admin') {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
+    notif.read = false;
+    await notif.save();
+
+    return res.json({ data: notif });
+  } catch (err) {
+    console.error('[markNotificationUnread] Error:', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+
 export const deleteNotification = async (req, res) => {
   try {
     const { id } = req.params;

@@ -1,9 +1,9 @@
-// src/components/AppointmentQueue.jsx
+
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import PropTypes from "prop-types";
 import { Clock, CheckCircle, XCircle } from "lucide-react";
-import { api } from "../api/api"; // your axios instance
-import { createSocket } from "../api/socket"; // shared socket factory (must exist)
+import { api } from "../api/api"; 
+import { getSocket } from "../api/socket"; 
 
 const RISK_ORDER = { critical: 4, high: 3, moderate: 2, low: 1, unknown: 0 };
 
@@ -11,8 +11,7 @@ const sortQueue = (list = []) => {
   return [...list].sort((a, b) => {
     const ra = RISK_ORDER[a?.risk_snapshot?.risk_level] ?? 0;
     const rb = RISK_ORDER[b?.risk_snapshot?.risk_level] ?? 0;
-    if (rb !== ra) return rb - ra; // higher risk first
-    // fallback: earlier requested_at first
+    if (rb !== ra) return rb - ra; 
     const da = new Date(a.requested_at || a.requestedAt || 0).getTime();
     const db = new Date(b.requested_at || b.requestedAt || 0).getTime();
     return da - db;
@@ -22,11 +21,10 @@ const sortQueue = (list = []) => {
 const AppointmentQueue = ({ selectedDoctorId }) => {
   const [queue, setQueue] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [submittingIds, setSubmittingIds] = useState(new Set()); // track in-flight updates
+  const [submittingIds, setSubmittingIds] = useState(new Set()); 
   const socketRef = useRef(null);
   const abortRef = useRef(null);
 
-  // helper: get token and doctor id from props or localStorage
   const getAuthToken = () => localStorage.getItem("token");
   const getDoctorId = () => {
     if (selectedDoctorId) return selectedDoctorId;
@@ -38,12 +36,12 @@ const AppointmentQueue = ({ selectedDoctorId }) => {
     }
   };
 
-  // fetch queue
+
   const fetchQueue = useCallback(async (signal) => {
     try {
       setLoading(true);
       const res = await api.get("/appointments/doctor/appointments", { signal });
-      // backend returns either { data: [...] } or plain []
+  
       const list = res?.data?.data ?? res?.data ?? [];
       setQueue(sortQueue(Array.isArray(list) ? list : []));
     } catch (err) {
@@ -70,73 +68,73 @@ const AppointmentQueue = ({ selectedDoctorId }) => {
     };
   }, [fetchQueue, selectedDoctorId]);
 
-  // Socket: join doctor room and listen for incoming appointment:new events
-  useEffect(() => {
-    const token = getAuthToken();
-    const doctorId = getDoctorId();
-    if (!token || !doctorId) return; // nothing to do
+useEffect(() => {
+  const token = getAuthToken();
+  const doctorId = getDoctorId();
+  if (!token || !doctorId) return; // nothing to do
 
-    const socket = createSocket(token);
-    socketRef.current = socket;
+  // use the singleton socket
+  const socket = getSocket(token);
+  socketRef.current = socket;
 
-    const room = `doctor:${doctorId}`;
+  const room = `doctor:${doctorId}`;
 
-    const onConnect = () => {
-      try {
-        socket.emit("room:join", room);
-      } catch (e) {
-        console.warn("room:join emit failed", e);
-      }
-    };
+  const onConnect = () => {
+    try {
+      socket.emit("room:join", room);
+    } catch (e) {
+      console.warn("room:join emit failed", e);
+    }
+  };
 
-    const onNewAppointment = (payload) => {
-      if (!payload || !payload.appointment) return;
-      setQueue(prev => {
-        // if already present, replace; otherwise prepend then sort
-        const exists = prev.some(a => String(a._id) === String(payload.appointment._id));
-        const next = exists ? prev.map(a => String(a._id) === String(payload.appointment._id) ? payload.appointment : a) : [payload.appointment, ...prev];
-        return sortQueue(next);
-      });
-    };
-
-    socket.on("connect", onConnect);
-    socket.on("appointment:new", onNewAppointment);
-
-    socket.on("connect_error", (err) => {
-      console.warn("Socket connect_error:", err?.message || err);
+  const onNewAppointment = (payload) => {
+    if (!payload || !payload.appointment) return;
+    setQueue(prev => {
+      const exists = prev.some(a => String(a._id) === String(payload.appointment._id));
+      const next = exists
+        ? prev.map(a => String(a._id) === String(payload.appointment._id) ? payload.appointment : a)
+        : [payload.appointment, ...prev];
+      return sortQueue(next);
     });
+  };
 
-    return () => {
-      try {
-        socket.off("connect", onConnect);
-        socket.off("appointment:new", onNewAppointment);
-        socket.emit("room:leave", room);
-        socket.disconnect();
-      } catch (e) {
-        // ignore
-      }
-      socketRef.current = null;
-    };
-  }, [selectedDoctorId]);
+  socket.on("connect", onConnect);
+  socket.on("appointment:new", onNewAppointment);
 
-  // handle status update (optimistic then finalize)
+  socket.on("connect_error", (err) => {
+    console.warn("Socket connect_error:", err?.message || err);
+  });
+
+  return () => {
+    try {
+  
+      socket.off("connect", onConnect);
+      socket.off("appointment:new", onNewAppointment);
+      socket.off("connect_error");
+    
+      try { socket.emit("room:leave", room); } catch (e) {}
+    } catch (e) {
+    
+    }
+    socketRef.current = null;
+  };
+}, [selectedDoctorId]);
   const handleStatusUpdate = async (appointmentId, status) => {
     if (!appointmentId || !status) return;
-    // mark as submitting
+
     setSubmittingIds(prev => new Set(prev).add(appointmentId));
 
-    // optimistic update: update the appointment's status locally
     setQueue(prev => prev.map(app => app._id === appointmentId ? { ...app, status } : app));
 
     try {
       const res = await api.patch(`/appointments/doctor/appointments/${appointmentId}/status`, { status });
-      // if backend returns updated appointment, we could update it precisely:
+     
       const updated = res?.data?.appointment ?? res?.data ?? null;
 
       if (updated) {
         setQueue(prev => prev.filter(app => String(app._id) !== String(appointmentId))); // remove processed
       } else {
-        // If no updated object, remove processed appointment
+     
         setQueue(prev => prev.filter(app => String(app._id) !== String(appointmentId)));
       }
     } catch (err) {

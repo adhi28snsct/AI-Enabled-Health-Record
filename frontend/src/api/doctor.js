@@ -8,16 +8,15 @@ export const getLabReports = (patientId) => api.get(`/doctor/lab-reports/${patie
 export const getAISummary = (patientId) => api.get(`/doctor/ai-summary/${patientId}`);
 export const getPatientAlerts = (patientId) => api.get(`/doctor/alerts/${patientId}`);
 
-// CREATE Endpoints
+
 export const addVitals = (data) => api.post("/doctor/vitals", data);
 export const addPrescription = (data) => api.post("/doctor/prescriptions", data);
 export const addLabReport = (data) => api.post("/doctor/lab-reports", data);
 export const addAlert = (data) => api.post("/doctor/alerts", data);
-// DOCTOR profile endpoints
+
 export const getDoctorProfile = (doctorId) => api.get(`/doctor/doctors/${doctorId}`);
 export const updateDoctorProfile = (doctorId, payload) => api.patch(`/doctor/doctors/${doctorId}`, payload);
 
 
-// 💡 UPDATE Endpoints (Fixes the crash and enables Edit functionality)
 export const updateVitals = (vitalsId, payload) => api.put(`/doctor/vitals/${vitalsId}`, payload);
-export const updateLabReport = (reportId, payload) => api.put(`/doctor/lab-reports/${reportId}`, payload); // <-- ADDED MISSING FUNCTION
+export const updateLabReport = (reportId, payload) => api.put(`/doctor/lab-reports/${reportId}`, payload); 

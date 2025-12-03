@@ -162,17 +162,42 @@ export const getDoctorAppointmentQueue = async (req, res) => {
     const doctorId = req.user && req.user._id;
     if (!doctorId) return res.status(401).json({ message: 'Unauthorized' });
 
-    const queue = await Appointment.find({
-      doctor: doctorId,
-      status: 'pending'
-    })
+    // Accept ?status=confirmed or ?status=confirmed,accepted
+    const rawStatus = (req.query?.status ?? "").toString().trim();
+    let statusFilter;
+
+    if (rawStatus) {
+      // support comma separated list, normalize to lowercase
+      const statusList = rawStatus.split(",").map(s => s.toString().trim().toLowerCase()).filter(Boolean);
+      // if user passed "all" return all statuses (no filter)
+      if (statusList.length === 1 && statusList[0] === "all") {
+        statusFilter = null;
+      } else {
+        statusFilter = { $in: statusList };
+      }
+    } else {
+      // default behavior: return pending queue only (unchanged)
+      statusFilter = 'pending';
+    }
+
+    // Build the query
+    const query = { doctor: doctorId };
+    if (statusFilter !== null) {
+      query.status = statusFilter;
+    }
+
+    // fetch & populate
+    const queue = await Appointment.find(query)
       .populate('patient', 'name gender dob')
       .lean();
+
+    // Log for debug
+    console.debug(`[getDoctorAppointmentQueue] doctor=${doctorId} queryStatus=${rawStatus || 'pending'} returned=${Array.isArray(queue) ? queue.length : 0}`);
 
     // Manual sort by risk level (critical -> high -> moderate -> low -> unknown)
     const riskOrder = { critical: 4, high: 3, moderate: 2, low: 1, unknown: 0 };
 
-    const sortedQueue = queue.sort((a, b) => {
+    const sortedQueue = (Array.isArray(queue) ? queue : []).sort((a, b) => {
       const ra = riskOrder[a?.risk_snapshot?.risk_level] ?? 0;
       const rb = riskOrder[b?.risk_snapshot?.risk_level] ?? 0;
       if (rb !== ra) return rb - ra;
@@ -186,6 +211,7 @@ export const getDoctorAppointmentQueue = async (req, res) => {
     return res.status(500).json({ message: 'Server error retrieving appointment queue.' });
   }
 };
+
 
 export const updateAppointmentStatus = async (req, res) => {
   try {

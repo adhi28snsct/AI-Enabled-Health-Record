@@ -1,3 +1,4 @@
+// server.js
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
@@ -10,39 +11,75 @@ import authRoutes from "./routes/auth.js";
 import patientRoutes from "./routes/patients.js";
 import doctorRoutes from "./routes/doctorRoutes.js";
 import appointmentRoutes from "./routes/appointmentRoutes.js";
-
 import notificationRoutes from "./routes/notificationRoutes.js";
 
 dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET || "changeme";
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || "*";
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || "http://localhost:5173"; // comma-separated allowed origins
 const MONGO_URI = process.env.MONGO_URI;
 const REDIS_URL = process.env.REDIS_URL;
 const PORT = process.env.PORT || 5000;
 
 async function start() {
   const app = express();
-  app.use(cors({ origin: FRONTEND_ORIGIN }));
+
+  // If behind a proxy (nginx, cloud load balancer) enable trust proxy
+  app.set("trust proxy", true);
+
+  // normalize allowed origins into an array
+  const FRONTEND_ORIGINS = (FRONTEND_ORIGIN || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  // express-level CORS: allow credentials and common headers
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        // allow non-browser (e.g. server-to-server) requests where origin is undefined
+        if (!origin) return callback(null, true);
+        if (FRONTEND_ORIGINS.includes(origin)) return callback(null, true);
+        return callback(new Error("CORS not allowed by server"), false);
+      },
+      credentials: true,
+      methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization", "x-requested-with"],
+      exposedHeaders: ["Content-Range", "X-Total-Count"],
+    })
+  );
+
   app.use(express.json());
 
+  // API routes
   app.use("/api/auth", authRoutes);
   app.use("/api/patients", patientRoutes);
   app.use("/api/doctor", doctorRoutes);
   app.use("/api/appointments", appointmentRoutes);
-
   app.use("/api/notifications", notificationRoutes);
 
+  // create HTTP server
   const server = http.createServer(app);
 
+  // set up Socket.IO with explicit CORS and slightly relaxed ping config
   const io = new IOServer(server, {
+    path: "/socket.io",
     cors: {
-      origin: FRONTEND_ORIGIN,
-      methods: ["GET", "POST"],
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        if (FRONTEND_ORIGINS.includes(origin)) return callback(null, true);
+        return callback(new Error("Socket CORS not allowed"), false);
+      },
+      methods: ["GET", "POST", "OPTIONS"],
+      credentials: true,
     },
+    // ping/pong timeout tweaks - increases tolerance for flaky networks/proxies
+    pingInterval: 25000,
+    pingTimeout: 60000,
+    maxHttpBufferSize: 1e6,
   });
 
-  // Optional Redis adapter
+  // Optional Redis adapter for horizontal scaling
   if (REDIS_URL) {
     try {
       const { createAdapter } = await import("@socket.io/redis-adapter");
@@ -57,11 +94,17 @@ async function start() {
       console.warn("⚠️ Failed to enable Redis adapter:", err.message || err);
     }
   }
+
+  // socket auth middleware using handshake.auth.token (client sends via auth)
   io.use((socket, next) => {
     const token = socket.handshake.auth?.token;
-    if (!token) return next(new Error("Authentication token required"));
+    if (!token) {
+      console.warn("[socket] connection attempt without token, socket id:", socket.id);
+      return next(new Error("Authentication token required"));
+    }
     try {
       const payload = jwt.verify(token, JWT_SECRET);
+      // normalize id field
       payload.id = payload.id ?? payload._id ?? payload.userId;
       socket.user = payload;
       return next();
@@ -128,8 +171,10 @@ async function start() {
     });
   });
 
+  // make io accessible from express routes if needed
   app.set("io", io);
 
+  // connect to Mongo
   try {
     if (!MONGO_URI) throw new Error("MONGO_URI is not set");
     await mongoose.connect(MONGO_URI, { dbName: "Health_Record_Platform" });
@@ -139,10 +184,12 @@ async function start() {
     process.exit(1);
   }
 
+  // start server
   server.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
   });
 
+  // graceful shutdown
   const shutdown = async (signal) => {
     try {
       console.log(`\n🌙 Received ${signal} — shutting down gracefully...`);
@@ -160,12 +207,8 @@ async function start() {
   process.on("SIGINT", () => shutdown("SIGINT"));
   process.on("SIGTERM", () => shutdown("SIGTERM"));
 
-  process.on("unhandledRejection", (r) =>
-    console.error("Unhandled Rejection:", r)
-  );
-  process.on("uncaughtException", (err) =>
-    console.error("Uncaught Exception:", err)
-  );
+  process.on("unhandledRejection", (r) => console.error("Unhandled Rejection:", r));
+  process.on("uncaughtException", (err) => console.error("Uncaught Exception:", err));
 }
 
 start().catch((err) => {

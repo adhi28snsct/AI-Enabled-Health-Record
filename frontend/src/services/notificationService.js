@@ -32,6 +32,21 @@ instance.interceptors.request.use((cfg) => {
   return cfg;
 }, (err) => Promise.reject(err));
 
+// Optional: lightweight dev logging for requests/responses
+if (process.env.NODE_ENV !== "production") {
+  instance.interceptors.request.use((cfg) => {
+    try { console.debug("[notifications] req", cfg.method, cfg.url, cfg.data ?? ""); } catch {}
+    return cfg;
+  });
+  instance.interceptors.response.use((res) => {
+    try { console.debug("[notifications] res", res.config?.url, res.status); } catch {}
+    return res;
+  }, (err) => {
+    try { console.debug("[notifications] resERR", err?.config?.url, err?.message); } catch {}
+    return Promise.reject(err);
+  });
+}
+
 export const fetchNotifications = async () => {
   try {
     const res = await instance.get("/api/notifications");
@@ -39,47 +54,6 @@ export const fetchNotifications = async () => {
   } catch (err) {
     console.error("fetchNotifications failed:", err?.message ?? err);
     return [];
-  }
-};
-
-export const markNotificationRead = async (id) => {
-  if (!id) return null;
-  try {
-    const res = await instance.patch(`/api/notifications/${id}/read`);
-    return res.data ?? res;
-  } catch (err) {
-    console.warn("markNotificationRead failed:", err?.message ?? err);
-    throw err;
-  }
-};
-export const markNotificationUnread = async (id) => {
-  if (!id) return null;
-  try {
-    // Try a dedicated unread endpoint first (if your backend exposes it).
-    try {
-      const res = await instance.patch(`/api/notifications/${id}/unread`);
-      return res.data ?? res;
-    } catch (err) {
-      // ignore and try fallback
-    }
-
-    // Fallback: generic partial update (server must accept { read: false })
-    const res2 = await instance.patch(`/api/notifications/${id}`, { read: false });
-    return res2.data ?? res2;
-  } catch (err) {
-    console.warn("markNotificationUnread failed:", err?.message ?? err);
-    throw err;
-  }
-};
-
-
-export const markAllNotificationsRead = async () => {
-  try {
-    const res = await instance.patch("/api/notifications/read-all");
-    return res.data ?? res;
-  } catch (err) {
-    console.warn("markAllNotificationsRead failed:", err?.message ?? err);
-    throw err;
   }
 };
 
@@ -116,9 +90,57 @@ export const fetchNotificationById = async (id) => {
 };
 
 /**
+ * markNotificationRead
+ * Unified function: mark read (read=true) or unread (read=false).
+ * Tries dedicated endpoints first (/read or /unread), falls back to PATCH /api/notifications/:id with { read }
+ */
+export const markNotificationRead = async (id, read = true) => {
+  if (!id) return null;
+  try {
+    if (read) {
+      // attempt dedicated endpoint
+      try {
+        const res = await instance.patch(`/api/notifications/${id}/read`);
+        return res.data ?? res;
+      } catch (err) {
+        // fallback to generic patch
+        const res2 = await instance.patch(`/api/notifications/${id}`, { read: true });
+        return res2.data ?? res2;
+      }
+    } else {
+      // mark unread: try dedicated endpoint first
+      try {
+        const res = await instance.patch(`/api/notifications/${id}/unread`);
+        return res.data ?? res;
+      } catch (err) {
+        // fallback to generic patch
+        const res2 = await instance.patch(`/api/notifications/${id}`, { read: false });
+        return res2.data ?? res2;
+      }
+    }
+  } catch (err) {
+    console.warn("markNotificationRead (with read flag) failed:", err?.message ?? err);
+    throw err;
+  }
+};
+
+// convenience wrapper
+export const markNotificationUnread = async (id) => {
+  return markNotificationRead(id, false);
+};
+
+export const markAllNotificationsRead = async () => {
+  try {
+    const res = await instance.patch("/api/notifications/read-all");
+    return res.data ?? res;
+  } catch (err) {
+    console.warn("markAllNotificationsRead failed:", err?.message ?? err);
+    throw err;
+  }
+};
+
+/**
  * deleteNotification
- * Attempts to delete a notification server-side.
- * If backend doesn't expose DELETE, this will surface an error in console.
  */
 export const deleteNotification = async (id) => {
   if (!id) return null;
@@ -132,21 +154,17 @@ export const deleteNotification = async (id) => {
 };
 
 /**
- * togglePinNotification
- * Attempts to toggle pinned status on server. Will first try a dedicated endpoint,
- * then fall back to a generic PATCH to `/api/notifications/:id`.
+ * togglePinNotification: tries /pin endpoint then falls back to generic PATCH
  */
 export const togglePinNotification = async (id, pinned = true) => {
   if (!id) return null;
   try {
-    // try dedicated endpoint first
     try {
       const res = await instance.patch(`/api/notifications/${id}/pin`, { pinned });
       return res.data ?? res;
     } catch (err) {
-      // ignore and attempt fallback
+      // fallback
     }
-    // fallback: generic PATCH (server must accept partial updates)
     const res2 = await instance.patch(`/api/notifications/${id}`, { pinned });
     return res2.data ?? res2;
   } catch (err) {
@@ -159,7 +177,7 @@ export default {
   fetchNotifications,
   fetchNotificationById,
   markNotificationRead,
-  markNotificationUnread,  
+  markNotificationUnread,
   markAllNotificationsRead,
   deleteNotification,
   togglePinNotification,

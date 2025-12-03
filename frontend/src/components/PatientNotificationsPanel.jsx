@@ -1,10 +1,11 @@
-// src/components/PatientNotificationsPanel.jsx
+
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   fetchNotifications,
   markNotificationRead,
+  markNotificationUnread,
   deleteNotification,
   togglePinNotification,
 } from "../services/notificationService";
@@ -18,8 +19,8 @@ export default function PatientNotificationsPanel({ open, onClose }) {
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, id: null });
   const containerRef = useRef(null);
   const navigate = useNavigate();
+  const pendingRequestsRef = useRef(new Set());
 
-  // When a right-click happens we set this to true briefly so the click handler can ignore it.
   const ignoreNextClickRef = useRef(false);
 
   const loadNotifications = async () => {
@@ -56,32 +57,20 @@ export default function PatientNotificationsPanel({ open, onClose }) {
       || null;
   };
 
-  // MAIN click handler — ignore if it was a right-click that set the ignore flag
-  const onNotificationClick = (n) => {
-    // if the right-click just happened, ignore this click
-    if (ignoreNextClickRef.current) {
-      ignoreNextClickRef.current = false;
-      return;
-    }
+const onNotificationClick = (n) => {
+ 
+  const apptId = extractAppointmentId(n);
+  if (apptId) {
+    setSelectedNotification({ notification: n, appointmentId: apptId });
+  }
+};
 
-    const apptId = extractAppointmentId(n);
-    setNotifications(prev => prev.map(p => (String(p._id) === String(n._id) ? { ...p, read: true } : p)));
-    markNotificationRead(n._id).catch(e => console.warn('mark read background failed', e));
-
-    if (apptId) {
-      setSelectedNotification({ notification: n, appointmentId: apptId });
-      return;
-    }
-  };
-
-  // CONTEXT MENU: preventDefault + stopPropagation, set ignore flag, open menu
   const onContextMenu = (e, n) => {
     e.preventDefault();
     e.stopPropagation();
 
-    // set ignore so click handler doesn't trigger after right-click
     ignoreNextClickRef.current = true;
-    // clear the flag shortly after so normal clicks resume
+
     window.setTimeout(() => { ignoreNextClickRef.current = false; }, 300);
 
     setContextMenu({
@@ -94,7 +83,6 @@ export default function PatientNotificationsPanel({ open, onClose }) {
 
   const closeContextMenu = () => setContextMenu({ visible: false, x: 0, y: 0, id: null });
 
-  // Pin/unpin optimistic update
   const handleTogglePin = async (id) => {
     closeContextMenu();
     setNotifications(prev => prev.map(n => (String(n._id) === String(id) ? { ...n, pinned: !n.pinned } : n)));
@@ -125,21 +113,30 @@ export default function PatientNotificationsPanel({ open, onClose }) {
     }
   };
 
-  const handleMarkUnread = async (id) => {
-    closeContextMenu();
-    const backup = notifications;
-    setNotifications(prev => prev.map(n => (String(n._id) === String(id) ? { ...n, read: false } : n)));
-    try {
-    
-      if (typeof markNotificationRead === 'function') {
-       
-        await markNotificationRead(id, false);
-      }
-    } catch (err) {
-      console.warn("mark unread failed, reverting local change", err);
-      setNotifications(backup);
-    }
-  };
+// updated handleMarkUnread
+const handleMarkUnread = async (id) => {
+  closeContextMenu();
+
+  if (!id) return;
+  if (pendingRequestsRef.current.has(id)) {
+    console.debug('markUnread ignored, request already pending for', id);
+    return;
+  }
+
+  pendingRequestsRef.current.add(id);
+  const backup = notifications;
+  setNotifications(prev => prev.map(n => (String(n._id) === String(id) ? { ...n, read: false } : n)));
+
+  try {
+    const resp = await markNotificationUnread(id);
+    console.debug('markUnread response', id, resp?.status ?? resp);
+  } catch (err) {
+    console.warn("mark unread failed, reverting local change", err);
+    setNotifications(backup);
+  } finally {
+    pendingRequestsRef.current.delete(id);
+  }
+};
 
 const handleMarkAllRead = async () => {
   const unread = notifications.filter(n => !n.read);

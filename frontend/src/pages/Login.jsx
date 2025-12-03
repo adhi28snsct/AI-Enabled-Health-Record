@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+// src/pages/Login.jsx
+import React, { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { toast } from "react-toastify";
 import backgroundImage from "../assets/home.png";
 import { setAuthToken } from "../api/api"; // Axios token helper
 import { useAuth } from "../api/authContext"; // Context hook
@@ -39,14 +39,14 @@ const Login = () => {
 
       if (res.ok && data.token) {
         const userData = {
-          _id: data.user._id, // ✅ use _id to match backend and context
+          _id: data.user._id,
           name: data.user.name,
           role: data.user.role,
         };
 
         // Save to localStorage
         localStorage.setItem("token", data.token);
-        localStorage.setItem("userId", userData._id); // ✅ match AuthContext
+        localStorage.setItem("userId", userData._id);
         localStorage.setItem("name", userData.name);
         localStorage.setItem("role", userData.role);
 
@@ -54,7 +54,6 @@ const Login = () => {
         setUser(userData);
         setToken(data.token);
 
-        // Attach token to Axios
         setAuthToken(data.token);
 
         toast.success("Login successful!", {
@@ -78,7 +77,7 @@ const Login = () => {
             default:
               toast.error("Invalid role selected");
           }
-        }, 1500);
+        }, 3000);
       } else {
         toast.error(data.message || "Invalid credentials", {
           style: { backgroundColor: "#fff", color: "#000" },
@@ -97,7 +96,6 @@ const Login = () => {
       className="min-h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat px-4"
       style={{ backgroundImage: `url(${backgroundImage})` }}
     >
-      <ToastContainer position="top-right" />
       <div className="max-w-md w-full bg-white/80 backdrop-blur-md p-8 rounded-xl shadow-md">
         <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">
           Login to HealthConnect
@@ -141,12 +139,21 @@ const Login = () => {
             Login
           </button>
         </form>
-        <p className="text-sm text-center text-gray-700 mt-4">
-          Don’t have an account?{" "}
-          <a href="/register" className="text-blue-600 hover:underline">
-            Register here
-          </a>
-        </p>
+
+        {/* fixed: use a div container instead of a <p> when containing block elements */}
+        <div className="text-sm text-center text-gray-700 mt-4 space-y-2">
+          <div>
+            Don’t have an account?{" "}
+            <Link to="/register" className="text-blue-600 hover:underline">
+              Register here
+            </Link>
+          </div>
+          <div>
+            <Link to="/forgot-password" className="text-blue-600 hover:underline">
+              Forgot password?
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );
