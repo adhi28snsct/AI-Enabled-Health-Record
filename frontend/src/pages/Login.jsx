@@ -1,162 +1,184 @@
-// src/pages/Login.jsx
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { toast } from "react-toastify";
-import backgroundImage from "../assets/home.png";
-import { setAuthToken } from "../api/api"; // Axios token helper
-import { useAuth } from "../api/authContext"; // Context hook
+import { GoogleLogin } from "@react-oauth/google";
+import axios from "axios";
+import { Mail, Lock, LogIn, ShieldCheck, User } from "lucide-react";
 
-const Login = () => {
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-    role: "",
-  });
+import { useAuth } from "@/context/AuthContext";
 
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+
+export default function Login() {
   const navigate = useNavigate();
-  const { setUser, setToken } = useAuth();
+  const { login, isAuthenticated, getDashboardPath } = useAuth();
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!form.role) {
-      toast.error("Please select a role");
-      return;
+  /* ================= REDIRECT IF ALREADY LOGGED IN ================= */
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate(getDashboardPath(), { replace: true });
     }
+  }, [isAuthenticated, navigate, getDashboardPath]);
+
+  /* ================= PATIENT LOGIN ================= */
+  const handlePatientLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:5000/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
+      const { data } = await axios.post(
+        "http://localhost:5000/api/auth/login",
+        { email, password }
+      );
 
-      const data = await res.json();
+      login(data); // 🔥 AuthContext handles everything
+      navigate(getDashboardPath(), { replace: true });
+    } catch (err) {
+      alert(err.response?.data?.message || "Login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      if (res.ok && data.token) {
-        const userData = {
-          _id: data.user._id,
-          name: data.user.name,
-          role: data.user.role,
-        };
+  /* ================= GOOGLE LOGIN ================= */
+  const handleGoogleLogin = async (res) => {
+    try {
+      const { data } = await axios.post(
+        "http://localhost:5000/api/auth/google-login",
+        { idToken: res.credential }
+      );
 
-        // Save to localStorage
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("userId", userData._id);
-        localStorage.setItem("name", userData.name);
-        localStorage.setItem("role", userData.role);
-
-        // Save to context
-        setUser(userData);
-        setToken(data.token);
-
-        setAuthToken(data.token);
-
-        toast.success("Login successful!", {
-          style: { backgroundColor: "#fff", color: "#000" },
-        });
-
-        setTimeout(() => {
-          switch (form.role) {
-            case "patient":
-              navigate("/patient");
-              break;
-            case "doctor":
-              navigate("/doctor");
-              break;
-            case "government":
-              navigate("/admin");
-              break;
-            case "hospital":
-              navigate("/health-worker");
-              break;
-            default:
-              toast.error("Invalid role selected");
-          }
-        }, 3000);
-      } else {
-        toast.error(data.message || "Invalid credentials", {
-          style: { backgroundColor: "#fff", color: "#000" },
-        });
-      }
-    } catch (error) {
-      console.error("Login error:", error);
-      toast.error("Server error, please try again later", {
-        style: { backgroundColor: "#fff", color: "#000" },
-      });
+      login(data);
+      navigate(getDashboardPath(), { replace: true });
+    } catch (err) {
+      alert(err.response?.data?.message || "Access not allowed");
     }
   };
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat px-4"
-      style={{ backgroundImage: `url(${backgroundImage})` }}
-    >
-      <div className="max-w-md w-full bg-white/80 backdrop-blur-md p-8 rounded-xl shadow-md">
-        <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">
-          Login to HealthConnect
-        </h2>
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <input
-            type="email"
-            name="email"
-            value={form.email}
-            onChange={handleChange}
-            required
-            placeholder="Email"
-            className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <input
-            type="password"
-            name="password"
-            value={form.password}
-            onChange={handleChange}
-            required
-            placeholder="Password"
-            className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <select
-            name="role"
-            value={form.role}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Choose your role</option>
-            <option value="patient">Patient</option>
-            <option value="doctor">Doctor</option>
-            <option value="government">Government Agent</option>
-            <option value="hospital">Hospital Management</option>
-          </select>
-          <button
-            type="submit"
-            className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition"
-          >
-            Login
-          </button>
-        </form>
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-12">
+      <Card className="w-full max-w-[450px] border-none shadow-2xl">
+        <CardHeader className="space-y-1 text-center">
+          <div className="flex justify-center mb-2">
+            <div className="bg-primary/10 p-3 rounded-full">
+              <ShieldCheck className="w-8 h-8 text-primary" />
+            </div>
+          </div>
+          <CardTitle className="text-3xl font-bold tracking-tight">
+            Welcome back
+          </CardTitle>
+          <CardDescription>
+            Choose your login method to access HealthConnect
+          </CardDescription>
+        </CardHeader>
 
-        {/* fixed: use a div container instead of a <p> when containing block elements */}
-        <div className="text-sm text-center text-gray-700 mt-4 space-y-2">
-          <div>
-            Don’t have an account?{" "}
-            <Link to="/register" className="text-blue-600 hover:underline">
-              Register here
+        <CardContent>
+          <Tabs defaultValue="patient" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-8">
+              <TabsTrigger value="patient">Patient</TabsTrigger>
+              <TabsTrigger value="staff">Staff / Admin</TabsTrigger>
+            </TabsList>
+
+            {/* ================= PATIENT LOGIN ================= */}
+            <TabsContent value="patient">
+              <form onSubmit={handlePatientLogin} className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="email"
+                      placeholder="name@example.com"
+                      className="pl-10"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <Label>Password</Label>
+                    <Link
+                      to="#"
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="password"
+                      placeholder="••••••••"
+                      className="pl-10"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <Button className="w-full" disabled={loading}>
+                  {loading ? "Signing in..." : (
+                    <>
+                      Sign In <LogIn className="ml-2 h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              </form>
+            </TabsContent>
+
+            {/* ================= STAFF / GOOGLE LOGIN ================= */}
+            <TabsContent value="staff" className="text-center space-y-6">
+              <div className="bg-muted/50 p-6 rounded-lg border border-dashed">
+                <User className="w-10 h-10 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="font-medium mb-2">Internal Access Only</h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Doctors and admins must use verified accounts
+                </p>
+
+                <GoogleLogin
+                  onSuccess={handleGoogleLogin}
+                  onError={() => alert("Google login failed")}
+                />
+              </div>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+
+        <CardFooter className="border-t pt-6">
+          <p className="text-sm text-center text-muted-foreground w-full">
+            Don&apos;t have a patient account?{" "}
+            <Link
+              to="/register"
+              className="text-primary font-semibold hover:underline"
+            >
+              Create an account
             </Link>
-          </div>
-          <div>
-            <Link to="/forgot-password" className="text-blue-600 hover:underline">
-              Forgot password?
-            </Link>
-          </div>
-        </div>
-      </div>
+          </p>
+        </CardFooter>
+      </Card>
     </div>
   );
-};
-
-export default Login;
+}

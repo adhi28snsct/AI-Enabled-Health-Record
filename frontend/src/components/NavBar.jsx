@@ -1,36 +1,70 @@
-import { Link, useLocation } from 'react-router-dom';
-import { Heart } from 'lucide-react';
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Heart, LogOut } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 const Navbar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
-  const navLinks = [
-    { label: 'Dashboard', path: '/' },
-    { label: 'Login', path: '/login' },
-    { label: 'Register', path: '/register' },
-  ];
+  const isActive = (path) =>
+    location.pathname === path ||
+    location.pathname.startsWith(path + "/");
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
 
   return (
     <nav className="bg-white shadow-sm px-6 py-4 flex justify-between items-center sticky top-0 z-50">
       {/* Logo */}
-      <Link to="/" className="flex items-center gap-2 text-blue-600 font-bold text-xl">
+      <Link
+        to="/"
+        className="flex items-center gap-2 text-blue-600 font-bold text-xl"
+      >
         <Heart className="w-6 h-6" />
         HealthConnect
       </Link>
 
-      {/* Navigation Links */}
-      <div className="flex gap-6 text-gray-700 font-medium">
-        {navLinks.map(({ label, path }) => (
-          <Link
-            key={label}
-            to={path}
-            className={`hover:text-blue-600 transition ${
-              location.pathname === path ? 'text-blue-600 font-semibold' : ''
-            }`}
-          >
-            {label}
-          </Link>
-        ))}
+      {/* Right side */}
+      <div className="flex items-center gap-6 text-gray-700 font-medium">
+        {/* Logged in */}
+        {user ? (
+          <>
+            <span className="text-sm text-gray-500">
+              {user.role.replace("_", " ").toUpperCase()}
+            </span>
+
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1 text-red-600 hover:text-red-700"
+            >
+              <LogOut className="w-4 h-4" />
+              Logout
+            </button>
+          </>
+        ) : (
+          <>
+            <Link
+              to="/login"
+              className={`hover:text-blue-600 ${
+                isActive("/login") ? "text-blue-600 font-semibold" : ""
+              }`}
+            >
+              Login
+            </Link>
+
+            <Link
+              to="/register"
+              className={`hover:text-blue-600 ${
+                isActive("/register") ? "text-blue-600 font-semibold" : ""
+              }`}
+            >
+              Register
+            </Link>
+          </>
+        )}
       </div>
     </nav>
   );

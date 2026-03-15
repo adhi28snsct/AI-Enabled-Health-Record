@@ -5,63 +5,107 @@ import {
   bookAppointment,
   getDoctorAppointmentQueue,
   updateAppointmentStatus,
-  getAppointmentById,
+  acceptAppointment,
+  rejectAppointment,
+  getHospitalAppointments,
+  getPatientAppointments,
 } from "../controllers/appointmentController.js";
 
-import { getAllDoctors } from "../controllers/doctorController.js";
-import Appointment from "../models/Appointment.js";
+import { getAllDoctorsForBooking } from "../controllers/doctorController.js";
 
 const router = express.Router();
 
+/* =========================================================
+   ROLE MIDDLEWARE
+========================================================= */
 const requireRole = (role) => (req, res, next) => {
-  if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-  if (req.user.role !== role)
+  if (!req.user) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  if (req.user.role !== role) {
     return res.status(403).json({ message: "Forbidden: insufficient role" });
-  return next();
+  }
+  next();
 };
 
+/* =========================================================
+   DOCTORS (PATIENT VIEW)
+========================================================= */
+
+// 🔹 Patient → list doctors for booking
+router.get(
+  "/doctors",
+  authMiddleware,
+  requireRole("patient"),
+  getAllDoctorsForBooking
+);
+
+/* =========================================================
+   APPOINTMENTS – PATIENT
+========================================================= */
+
+// 🔹 Patient → book appointment
 router.post(
-  "/book",
+  "/",
   authMiddleware,
   requireRole("patient"),
   bookAppointment
 );
 
+// 🔹 Patient → view own appointments
 router.get(
-  "/patient/appointments",
+  "/my",
   authMiddleware,
   requireRole("patient"),
-  async (req, res) => {
-    try {
-      const patientId = req.user._id;
-      const list = await Appointment.find({ patient: patientId })
-        .sort({ requested_at: -1 })
-        .lean();
-      return res.json({ data: list });
-    } catch (err) {
-      console.error("[GET patient/appointments] Error:", err);
-      return res.status(500).json({ message: "Server error" });
-    }
-  }
+  getPatientAppointments
 );
 
+/* =========================================================
+   APPOINTMENTS – DOCTOR
+========================================================= */
+
+// 🔹 Doctor → appointment queue
 router.get(
-  "/doctor/appointments",
+  "/doctor",
   authMiddleware,
   requireRole("doctor"),
   getDoctorAppointmentQueue
 );
 
-// FIXED: single appointment route should be relative to the router base
-router.get("/:id", authMiddleware, getAppointmentById);
-
+// 🔹 Doctor → update appointment status
 router.patch(
-  "/doctor/appointments/:id/status",
+  "/:id/status",
   authMiddleware,
   requireRole("doctor"),
   updateAppointmentStatus
 );
 
-router.get("/doctors/available", authMiddleware, getAllDoctors);
+// 🔹 Doctor → accept appointment
+router.patch(
+  "/:id/accept",
+  authMiddleware,
+  requireRole("doctor"),
+  acceptAppointment
+);
+
+// 🔹 Doctor → reject appointment
+router.patch(
+  "/:id/reject",
+  authMiddleware,
+  requireRole("doctor"),
+  rejectAppointment
+);
+
+/* =========================================================
+   APPOINTMENTS – HOSPITAL ADMIN
+========================================================= */
+
+// 🔹 Hospital admin → all hospital appointments
+router.get(
+  "/hospital",
+  authMiddleware,
+  requireRole("hospital_admin"),
+  getHospitalAppointments
+);
 
 export default router;

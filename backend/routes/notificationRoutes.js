@@ -1,5 +1,5 @@
-import express from 'express';
-import { authMiddleware } from '../middleware/authMiddleware.js';
+import express from "express";
+import { authMiddleware } from "../middleware/authMiddleware.js";
 import {
   getNotifications,
   getNotificationById,
@@ -7,18 +7,43 @@ import {
   markNotificationUnread,
   markAllNotificationsRead,
   deleteNotification,
-  pinNotification,
-  patchNotification
-} from '../controllers/notificationController.js';
+  patchNotification,
+} from "../controllers/notificationController.js";
 
 const router = express.Router();
- 
-router.get('/', authMiddleware, getNotifications);
-router.get('/:id', authMiddleware, getNotificationById);
-router.patch('/:id/read', authMiddleware, markNotificationRead);      
-router.patch('/:id/unread', authMiddleware, markNotificationUnread);  
-router.patch('/:id', authMiddleware, patchNotification);              
-router.patch('/mark-all-read', authMiddleware, markAllNotificationsRead); 
-router.delete('/:id', authMiddleware, deleteNotification);
+
+/* ======================================================
+   ALL ROUTES PROTECTED
+====================================================== */
+router.use(authMiddleware);
+
+/* ======================================================
+   COLLECTION ROUTES
+====================================================== */
+
+// 🔔 Get all my notifications
+router.get("/", getNotifications);
+
+// ✅ Mark all as read
+router.patch("/mark-all-read", markAllNotificationsRead);
+
+/* ======================================================
+   SINGLE NOTIFICATION ROUTES
+====================================================== */
+
+// 📄 Get one notification
+router.get("/:id", getNotificationById);
+
+// ✅ Mark read
+router.patch("/:id/read", markNotificationRead);
+
+// ↩ Mark unread
+router.patch("/:id/unread", markNotificationUnread);
+
+// 📌 Patch (read / pinned)
+router.patch("/:id", patchNotification);
+
+// 🗑 Delete
+router.delete("/:id", deleteNotification);
 
 export default router;

@@ -6,6 +6,16 @@ const PrescriptionSchema = new mongoose.Schema({
     ref: "User",
     required: true,
   },
+  doctor: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+  appointment: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Appointment",
+    required: true,
+  },
   medication_name: {
     type: String,
     required: true,

@@ -47,9 +47,7 @@ const Home = () => {
       </div>
 
       {/* Footer */}
-      <div className="mt-12 text-center text-sm text-gray-100 bg-black/40 py-4 rounded">
-        Demo Platform • All data shown is mock data for demonstration purposes
-      </div>
+     
     </div>
   );
 };

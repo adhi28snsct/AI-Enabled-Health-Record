@@ -1,72 +1,35 @@
 import express from "express";
-import {
-
-  getAllPatients,
-  getPatientVitals,
-  addPatientVitals,
-  updateVitals,
-  deleteVitals,
-
-  getPatientPrescriptions,
-  addPrescription,
-  updatePrescription,
-  deletePrescription,
-  addPrescriptionById, 
-
-  getPatientLabReports,
-  addLabReport,
-  updateLabReport,
-  deleteLabReport,
-
-  getPatientAISummary,
-  addAISummary,
-  updateAISummary,
-  deleteAISummary,
-
-  getPatientAlerts,
-  addAlert,
-  updateAlert,
-  deleteAlert,
-  getDoctorProfile,
-  updateDoctorProfile,
-  getAllDoctors
-  
-} from "../controllers/doctorController.js";
-
 import { authMiddleware } from "../middleware/authMiddleware.js";
+
+import {
+  getMyDoctorProfile,
+  updateMyDoctorProfile,
+  getMyPatients,
+  getMyAppointments,
+  getPatientVitalsForDoctor,
+  getPatientPrescriptionsForDoctor,
+  getPatientLabReportsForDoctor,
+  getPatientAISummaryForDoctor,
+  getPatientAlertsForDoctor,
+} from "../controllers/doctorController.js";
 
 const router = express.Router();
 
-router.get("/patients", authMiddleware, getAllPatients);
+router.use(authMiddleware);
 
-router.get("/vitals/:patientId", authMiddleware, getPatientVitals);
-router.post("/vitals", authMiddleware, addPatientVitals);
-router.put("/vitals/:id", authMiddleware, updateVitals);
-router.delete("/vitals/:id", authMiddleware, deleteVitals);
+/* ===== PROFILE ===== */
+router.get("/me", getMyDoctorProfile);
+router.patch("/me", updateMyDoctorProfile);
 
-router.get("/prescriptions/:patientId", authMiddleware, getPatientPrescriptions);
-router.post("/prescriptions", authMiddleware, addPrescription);
-router.put("/prescriptions/:id", authMiddleware, updatePrescription);
-router.delete("/prescriptions/:id", authMiddleware, deletePrescription);
-router.post("/prescriptions/:id", authMiddleware, addPrescriptionById);
+/* ===== DASHBOARD ===== */
+router.get("/patients", getMyPatients);
+router.get("/my-appointments", getMyAppointments);
 
-router.get("/lab-reports/:patientId", authMiddleware, getPatientLabReports);
-router.post("/lab-reports", authMiddleware, addLabReport);
-router.put("/lab-reports/:id", authMiddleware, updateLabReport);
-router.delete("/lab-reports/:id", authMiddleware, deleteLabReport);
-
-router.get("/ai-summary/:patientId", authMiddleware, getPatientAISummary);
-router.post("/ai-summary", authMiddleware, addAISummary);
-router.put("/ai-summary/:id", authMiddleware, updateAISummary);
-router.delete("/ai-summary/:id", authMiddleware, deleteAISummary);
-
-router.get("/alerts/:patientId", authMiddleware, getPatientAlerts);
-router.post("/alerts", authMiddleware, addAlert);
-router.put("/alerts/:id", authMiddleware, updateAlert);
-router.delete("/alerts/:id", authMiddleware, deleteAlert);
-
-router.get("/doctors", authMiddleware, getAllDoctors);  
-router.get("/doctors/:id", authMiddleware, getDoctorProfile);
-router.patch("/doctors/:id", authMiddleware, updateDoctorProfile);
+/* ===== PATIENT DATA ===== */
+router.get("/patients/:patientId/vitals", getPatientVitalsForDoctor);
+router.get("/patients/:patientId/prescriptions", getPatientPrescriptionsForDoctor);
+router.get("/patients/:patientId/lab-reports", getPatientLabReportsForDoctor);
+router.get("/patients/:patientId/ai-summary", getPatientAISummaryForDoctor);
+router.get("/patients/:patientId/alerts", getPatientAlertsForDoctor);
 
 export default router;

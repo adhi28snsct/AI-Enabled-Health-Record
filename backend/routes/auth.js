@@ -1,20 +1,21 @@
 import express from "express";
 import {
-  registerUser,
-  loginUser,
-  registerPatientByHW,
-  forgotPassword,
-  resetPassword,
+  registerPatient,
+  loginPatient,
+  googleLogin,
 } from "../controllers/authController.js";
-import { authMiddleware } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
-router.post("/register", registerUser);
-router.post("/login", loginUser);
 
-router.post("/forgot-password", forgotPassword);
-router.post("/reset-password/:token", resetPassword);
+/* ================= AUTH ================= */
 
-router.post("/register-patient", authMiddleware, registerPatientByHW);
+// Patient Register
+router.post("/register", registerPatient);
+
+// Login
+router.post("/login", loginPatient);
+
+// Google Login
+router.post("/google-login", googleLogin);
 
 export default router;

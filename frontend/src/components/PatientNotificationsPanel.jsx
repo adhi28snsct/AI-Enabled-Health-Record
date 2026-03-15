@@ -10,7 +10,7 @@ import {
   togglePinNotification,
 } from "../services/notificationService";
 
-import AppointmentDetailPanel from "./AppointmentDetailPanel";
+import AppointmentDetailPanel from "./appointments/AppointmentDetailPanel";
 
 export default function PatientNotificationsPanel({ open, onClose }) {
   const [notifications, setNotifications] = useState([]);

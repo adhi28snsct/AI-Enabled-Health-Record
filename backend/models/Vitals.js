@@ -6,6 +6,16 @@ const vitalsSchema = new mongoose.Schema({
     ref: "User",
     required: true,
   },
+  doctor: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+  appointment: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Appointment",
+    required: true,
+  },
   blood_pressure_systolic: {
     type: Number,
     required: false,
@@ -35,6 +45,14 @@ const vitalsSchema = new mongoose.Schema({
     type: Number,
     required: false,
     min: 50,
+  },
+  weight: {
+    type: Number, // kg
+    required: false,
+  },
+  height: {
+    type: Number, // cm
+    required: false,
   },
   symptoms: {
     type: String,

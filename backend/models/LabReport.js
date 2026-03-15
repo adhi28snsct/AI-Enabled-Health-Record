@@ -6,6 +6,16 @@ const LabReportSchema = new mongoose.Schema({
     ref: "User",
     required: true,
   },
+  doctor: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+  appointment: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Appointment",
+    required: true,
+  },
   test_name: {
     type: String,
     required: true,

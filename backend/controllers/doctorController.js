@@ -1,359 +1,331 @@
+import mongoose from "mongoose";
 import User from "../models/User.js";
+import Appointment from "../models/Appointment.js";
 import Vitals from "../models/Vitals.js";
 import Prescription from "../models/Prescription.js";
 import LabReport from "../models/LabReport.js";
-import Alert from "../models/Alert.js";
 import AISummary from "../models/AISummary.js";
-import { triggerAIHealthSummary } from "../utils/aiService.js"; 
+import Alert from "../models/Alert.js";
 
-export const getAllPatients = async (req, res) => {
-  try {
-    const patients = await User.find({ role: "patient" }).select("-password");
+/* ======================================================
+   HELPERS
+====================================================== */
 
-    const enrichedPatients = await Promise.all(
-      patients.map(async (patient) => {
-        const ai = await AISummary.findOne({ patient: patient._id });
-        const risks = [
-          ai?.diabetes_risk,
-          ai?.anemia_risk,
-          ai?.hypertension_risk,
-          ai?.cardiac_risk,
-        ].filter(Boolean);
-
-        const riskOrder = ["low", "moderate", "high", "critical"];
-        const highestRisk =
-          risks.sort((a, b) => riskOrder.indexOf(b) - riskOrder.indexOf(a))[0] || "unknown";
-
-        return { ...patient.toObject(), risk_level: highestRisk };
-      })
-    );
-
-    res.json(enrichedPatients);
-  } catch (err) {
-    console.error("❌ [getAllPatients] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
+const ensureDoctor = (req, res) => {
+  if (!req.user || req.user.role !== "doctor") {
+    res.status(403).json({ message: "Doctors only" });
+    return false;
+  }
+  return true;
 };
 
-export const getPatientVitals = async (req, res) => {
-  try {
-    const { patientId } = req.params;
-    const vitals = await Vitals.find({ patient: patientId }).sort({ recorded_at: -1 });
-    res.json(vitals || []);
-  } catch (err) {
-    console.error("❌ [getPatientVitals] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
+const doctorHasPatient = async (doctorId, patientId, hospitalId) => {
+  if (
+    !mongoose.isValidObjectId(doctorId) ||
+    !mongoose.isValidObjectId(patientId) ||
+    !mongoose.isValidObjectId(hospitalId)
+  ) {
+    return false;
+  }
+
+  return Appointment.exists({
+    doctor: doctorId,
+    patient: patientId,
+    hospital: hospitalId,
+    status: { $in: ["confirmed", "completed"] },
+  });
 };
 
-export const addPatientVitals = async (req, res) => {
-  console.log("📥 Received vitals payload:", req.body); 
+/* ======================================================
+   DOCTOR DASHBOARD
+====================================================== */
 
-  try {
-    const patientId = req.body.patient; 
-
-    if (!patientId) {
-        return res.status(400).json({ message: "Patient ID is required to add vitals." });
-    }
-
-    const vitals = new Vitals(req.body);
-    const saved = await vitals.save();
-    await triggerAIHealthSummary(patientId);
-
-    res.status(201).json(saved);
-  } catch (err) {
-    console.error("❌ [addPatientVitals] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-export const updateVitals = async (req, res) => {
-  try {
-    const updated = await Vitals.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(updated);
-  } catch (err) {
-    console.error("❌ [updateVitals] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-export const deleteVitals = async (req, res) => {
-  try {
-    await Vitals.findByIdAndDelete(req.params.id);
-    res.json({ message: "Vitals deleted" });
-  } catch (err) {
-    console.error("❌ [deleteVitals] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-
-export const getPatientPrescriptions = async (req, res) => {
-  try {
-    const { patientId } = req.params;
-    const prescriptions = await Prescription.find({ patient: patientId }).sort({
-      prescribed_at: -1,
-    });
-    res.json(prescriptions || []);
-  } catch (err) {
-    console.error("❌ [getPatientPrescriptions] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-export const addPrescription = async (req, res) => {
-  try {
-    const prescription = new Prescription(req.body);
-    const saved = await prescription.save();
-    res.status(201).json(saved);
-  } catch (err) {
-    console.error("❌ [addPrescription] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-export const addPrescriptionById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const prescription = new Prescription({ ...req.body, patient: id });
-    const saved = await prescription.save();
-    res.status(201).json(saved);
-  } catch (err) {
-    console.error("❌ [addPrescriptionById] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-export const updatePrescription = async (req, res) => {
-  try {
-    const updated = await Prescription.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(updated);
-  } catch (err) {
-    console.error("❌ [updatePrescription] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-export const deletePrescription = async (req, res) => {
-  try {
-    await Prescription.findByIdAndDelete(req.params.id);
-    res.json({ message: "Prescription deleted" });
-  } catch (err) {
-    console.error("❌ [deletePrescription] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-
-export const getPatientLabReports = async (req, res) => {
-  try {
-    const { patientId } = req.params;
-    const reports = await LabReport.find({ patient: patientId }).sort({ test_date: -1 });
-    res.json(reports || []);
-  } catch (err) {
-    console.error("❌ [getPatientLabReports] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-export const addLabReport = async (req, res) => {
-  try {
-    const patientId = req.body.patient; 
-
-    if (!patientId) {
-        return res.status(400).json({ message: "Patient ID is required to add a lab report." });
-    }
-
-    const report = new LabReport(req.body);
-    const saved = await report.save();
-
-    await triggerAIHealthSummary(patientId);
-
-    res.status(201).json(saved);
-  } catch (err) {
-    console.error("❌ [addLabReport] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-export const updateLabReport = async (req, res) => {
-  try {
-    const updated = await LabReport.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(updated);
-  } catch (err) {
-    console.error("❌ [updateLabReport] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-export const deleteLabReport = async (req, res) => {
-  try {
-    await LabReport.findByIdAndDelete(req.params.id);
-    res.json({ message: "Lab report deleted" });
-  } catch (err) {
-    console.error("❌ [deleteLabReport] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-export const getPatientAISummary = async (req, res) => {
-  try {
-    const { patientId } = req.params;
-    const summary = await AISummary.findOne({ patient: patientId });
-    res.json(summary || {});
-  } catch (err) {
-    console.error("❌ [getPatientAISummary] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-export const addAISummary = async (req, res) => {
-  try {
-    const { patient, diabetes_risk, anemia_risk, hypertension_risk, cardiac_risk } = req.body;
-
-    let summary = await AISummary.findOne({ patient });
-
-    if (summary) {
-      summary.diabetes_risk = diabetes_risk;
-      summary.anemia_risk = anemia_risk;
-      summary.hypertension_risk = hypertension_risk;
-      summary.cardiac_risk = cardiac_risk;
-      summary = await summary.save();
-      return res.json(summary);
-    }
-
-    const saved = await new AISummary({
-      patient,
-      diabetes_risk,
-      anemia_risk,
-      hypertension_risk,
-      cardiac_risk,
-    }).save();
-
-    res.status(201).json(saved);
-  } catch (err) {
-    console.error("❌ [addAISummary] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-export const updateAISummary = async (req, res) => {
-  try {
-    const updated = await AISummary.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(updated);
-  } catch (err) {
-    console.error("❌ [updateAISummary] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-export const deleteAISummary = async (req, res) => {
-  try {
-    const { patientId } = req.params;
-    const deleted = await AISummary.findOneAndDelete({ patient: patientId });
-
-    if (!deleted) return res.status(404).json({ message: "AI summary not found" });
-
-    res.json({ message: "AI summary deleted successfully" });
-  } catch (err) {
-    console.error("❌ [deleteAISummary] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-
-export const getPatientAlerts = async (req, res) => {
-  try {
-    const { patientId } = req.params;
-    const alerts = await Alert.find({ patient: patientId }).sort({ created_at: -1 });
-    res.json(alerts || []);
-  } catch (err) {
-    console.error("❌ [getPatientAlerts] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-export const addAlert = async (req, res) => {
-  try {
-    const alert = new Alert(req.body);
-    const saved = await alert.save();
-    res.status(201).json(saved);
-  } catch (err) {
-    console.error("❌ [addAlert] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-export const updateAlert = async (req, res) => {
-  try {
-    const updated = await Alert.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(updated);
-  } catch (err) {
-    console.error("❌ [updateAlert] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-export const deleteAlert = async (req, res) => {
-  try {
-    await Alert.findByIdAndDelete(req.params.id);
-    res.json({ message: "Alert deleted" });
-  } catch (err) {
-    console.error("❌ [deleteAlert] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-
-export const getDoctorProfile = async (req, res) => {
+export const getMyPatients = async (req, res) => {
   try {
-    const doctorId = req.params.id;
+    if (!ensureDoctor(req, res)) return;
 
-    const doctor = await User.findById(doctorId).select("-password");
+    const appointments = await Appointment.find({
+      doctor: req.user._id,
+      hospital: req.user.hospitalId,
+      status: { $in: ["confirmed", "completed"] },
+    })
+      .populate("patient", "name gender dob phone")
+      .lean();
+
+    const uniquePatients = {};
+    appointments.forEach((a) => {
+      if (a.patient) uniquePatients[a.patient._id] = a.patient;
+    });
+
+    res.json({ data: Object.values(uniquePatients) });
+  } catch (err) {
+    console.error("❌ getMyPatients", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const getMyAppointments = async (req, res) => {
+  try {
+    if (!ensureDoctor(req, res)) return;
+
+    const list = await Appointment.find({
+      doctor: req.user._id,
+      hospital: req.user.hospitalId,
+    })
+      .populate("patient", "name gender dob")
+      .sort({ requested_at: -1 });
+
+    res.json({ data: list });
+  } catch (err) {
+    console.error("❌ getMyAppointments", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+/* ======================================================
+   PATIENT DATA (ONLY OWN PATIENTS)
+====================================================== */
+
+export const getPatientVitalsForDoctor = async (req, res) => {
+  try {
+    if (!ensureDoctor(req, res)) return;
+
+    const allowed = await doctorHasPatient(
+      req.user._id,
+      req.params.patientId,
+      req.user.hospitalId
+    );
+
+    if (!allowed)
+      return res.status(403).json({ message: "Not your patient" });
+
+    const vitals = await Vitals.find({ patient: req.params.patientId })
+      .sort({ recorded_at: -1 });
+
+    res.json({ data: vitals });
+  } catch (err) {
+    console.error("❌ getPatientVitalsForDoctor", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const getPatientPrescriptionsForDoctor = async (req, res) => {
+  try {
+    if (!ensureDoctor(req, res)) return;
+
+    const allowed = await doctorHasPatient(
+      req.user._id,
+      req.params.patientId,
+      req.user.hospitalId
+    );
+
+    if (!allowed)
+      return res.status(403).json({ message: "Not your patient" });
+
+    const prescriptions = await Prescription.find({
+      patient: req.params.patientId,
+    }).sort({ prescribed_at: -1 });
+
+    res.json({ data: prescriptions });
+  } catch (err) {
+    console.error("❌ getPatientPrescriptionsForDoctor", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const getPatientLabReportsForDoctor = async (req, res) => {
+  try {
+    if (!ensureDoctor(req, res)) return;
+
+    const allowed = await doctorHasPatient(
+      req.user._id,
+      req.params.patientId,
+      req.user.hospitalId
+    );
+
+    if (!allowed)
+      return res.status(403).json({ message: "Not your patient" });
+
+    const reports = await LabReport.find({
+      patient: req.params.patientId,
+    }).sort({ test_date: -1 });
+
+    res.json({ data: reports });
+  } catch (err) {
+    console.error("❌ getPatientLabReportsForDoctor", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const getPatientAISummaryForDoctor = async (req, res) => {
+  try {
+    if (!ensureDoctor(req, res)) return;
+
+    const allowed = await doctorHasPatient(
+      req.user._id,
+      req.params.patientId,
+      req.user.hospitalId
+    );
+
+    if (!allowed)
+      return res.status(403).json({ message: "Not your patient" });
+
+    const summary = await AISummary.findOne({
+      patient: req.params.patientId,
+    });
+
+    res.json({ data: summary || null });
+  } catch (err) {
+    console.error("❌ getPatientAISummaryForDoctor", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const getPatientAlertsForDoctor = async (req, res) => {
+  try {
+    if (!ensureDoctor(req, res)) return;
+
+    const allowed = await doctorHasPatient(
+      req.user._id,
+      req.params.patientId,
+      req.user.hospitalId
+    );
+
+    if (!allowed)
+      return res.status(403).json({ message: "Not your patient" });
+
+    const alerts = await Alert.find({
+      patient: req.params.patientId,
+    }).sort({ created_at: -1 });
+
+    res.json({ data: alerts });
+  } catch (err) {
+    console.error("❌ getPatientAlertsForDoctor", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+/* ======================================================
+   DOCTOR PROFILE
+====================================================== */
+
+export const getMyDoctorProfile = async (req, res) => {
+  try {
+    if (!ensureDoctor(req, res)) return;
+    res.json({ data: req.user });
+  } catch (err) {
+    console.error("❌ getMyDoctorProfile", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+/* ======================================================
+   UPDATE MY DOCTOR PROFILE (OPTION-2)
+====================================================== */
+
+export const updateMyDoctorProfile = async (req, res) => {
+  try {
+    if (req.user.role !== "doctor") {
+      return res.status(403).json({ message: "Doctors only" });
+    }
+
+    const doctor = await User.findById(req.user._id);
     if (!doctor) {
       return res.status(404).json({ message: "Doctor not found" });
     }
 
-    if (doctor.role !== "doctor") {
-      return res.status(400).json({ message: "User is not a doctor" });
+    /* ================= SIMPLE FIELDS ================= */
+
+    const fields = [
+      "name",
+      "phone",
+      "dob",
+      "blood_type",
+      "specialization",
+      "otherSpecialization",
+      "bio",
+      "consultation_fee",
+      "online_consultation",
+      "languages",
+    ];
+
+    fields.forEach((f) => {
+      if (req.body[f] !== undefined) {
+        doctor[f] = req.body[f];
+      }
+    });
+
+    /* ================= AVAILABILITY (CRITICAL FIX) ================= */
+
+    if (Array.isArray(req.body.availability)) {
+      doctor.availability = req.body.availability
+        .filter(
+          (slot) =>
+            slot &&
+            typeof slot.day === "string" &&
+            typeof slot.from === "string" &&
+            typeof slot.to === "string"
+        )
+        .map((slot) => ({
+          day: slot.day,
+          from: slot.from,
+          to: slot.to,
+          notes: slot.notes || "",
+        }));
     }
 
-    res.json(doctor);
+    /* ================= PROFILE COMPLETION ================= */
+
+    doctor.isProfileComplete =
+      Boolean(doctor.specialization) &&
+      Boolean(doctor.phone) &&
+      Array.isArray(doctor.availability) &&
+      doctor.availability.length > 0;
+
+    await doctor.save();
+
+    res.json({
+      data: doctor,
+      approvalStatus: {
+        hospitalApproved: doctor.hospitalApproved,
+        profileComplete: doctor.isProfileComplete,
+        canAcceptAppointments:
+          doctor.hospitalApproved && doctor.isProfileComplete,
+      },
+    });
   } catch (err) {
-    console.error("❌ [getDoctorProfile] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
+    console.error("❌ updateMyDoctorProfile:", err);
+    res.status(500).json({ message: "Profile update failed" });
   }
 };
 
-export const updateDoctorProfile = async (req, res) => {
+/* ======================================================
+   PATIENT → LIST DOCTORS FOR BOOKING (OPTION-2)
+====================================================== */
+
+export const getAllDoctorsForBooking = async (req, res) => {
   try {
-    const doctorId = req.params.id;
-
-    const updated = await User.findByIdAndUpdate(
-      doctorId,
-      req.body,
-      { new: true }
-    ).select("-password");
-
-    if (!updated) {
-      return res.status(404).json({ message: "Doctor not found" });
+    if (!req.user || req.user.role !== "patient") {
+      return res.status(403).json({ message: "Patients only" });
     }
 
-    res.json(updated);
+    const doctors = await User.find({
+      role: "doctor",
+      isActive: true,
+      hospitalApproved: true,
+      isProfileComplete: true,
+      hospitalId: { $exists: true, $ne: null },
+    }).select(
+      "name specialization otherSpecialization hospitalId consultation_fee profile_image availability"
+    );
+
+    res.status(200).json({
+      success: true,
+      data: doctors,
+    });
   } catch (err) {
-    console.error("❌ [updateDoctorProfile] Error:", err.message);
+    console.error("❌ getAllDoctorsForBooking:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
-
-export const getAllDoctors = async (req, res) => {
-  try {
-    const doctors = await User.find({ role: "doctor" })
-      .select("name email phone specialization otherSpecialization availability profile_image");
-
-    res.json(doctors);
-  } catch (err) {
-    console.error("❌ [getAllDoctors] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
-};    

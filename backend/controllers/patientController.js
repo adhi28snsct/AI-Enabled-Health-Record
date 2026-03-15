@@ -1,154 +1,233 @@
+import mongoose from "mongoose";
 import User from "../models/User.js";
 import HealthRecord from "../models/HealthRecord.js";
 import Prescription from "../models/Prescription.js";
 import LabReport from "../models/LabReport.js";
 import Alert from "../models/Alert.js";
 import AISummary from "../models/AISummary.js";
+import Appointment from "../models/Appointment.js";
 
-/* -------------------------------------------------------------------------- */
-/*                          PATIENT PROFILE CONTROLLERS                       */
-/* -------------------------------------------------------------------------- */
+/* =========================================================
+   ACCESS CONTROL HELPER
+========================================================= */
+const canAccessPatient = async (actor, patientId) => {
+  if (!actor) return false;
+  if (!mongoose.Types.ObjectId.isValid(patientId)) return false;
 
-// Get patient profile with AI risk level
+  /* ========= PATIENT ========= */
+  if (actor.role === "patient") {
+    return String(actor._id) === String(patientId);
+  }
 
+  /* ========= DOCTOR ========= */
+  if (actor.role === "doctor") {
+    return await Appointment.exists({
+      doctor: actor._id,
+      patient: patientId,
+      status: { $in: ["pending", "confirmed", "completed"] },
+    });
+  }
 
-// This assumes this function is located in the backend/controllers/patientController.js file
+  /* ========= HOSPITAL ADMIN ========= */
+  if (actor.role === "hospital_admin") {
+    return await Appointment.exists({
+      hospital: actor.hospitalId,
+      patient: patientId,
+      status: { $in: ["confirmed", "completed"] },
+    });
+  }
 
-export const getPatientProfile = async (req, res) => {
-  try {
-    // 💡 CRITICAL FIX: Prioritize the ID from the URL parameter, otherwise use the ID from the token.
-    const userId = req.params.userId || req.user?._id; 
-    
-    if (!userId) return res.status(400).json({ message: "User ID not provided" });
-
-    // 1. Fetch user profile
-    const user = await User.findById(userId).select("-password").lean();
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-
-    // 2. Fetch AI Summary
-    const ai = await AISummary.findOne({ patient: userId });
-
-    // 3. Calculate Highest Risk Level
-    const risks = [
-      ai?.diabetes_risk,
-      ai?.anemia_risk,
-      ai?.hypertension_risk,
-      ai?.cardiac_risk,
-    ].filter(r => typeof r === 'number'); 
-
-    const maxRiskPercentage = risks.length > 0 ? Math.max(...risks) : 0;
-    
-    let highestRiskLevel = "unknown";
-    if (maxRiskPercentage > 75) highestRiskLevel = "critical";
-    else if (maxRiskPercentage > 50) highestRiskLevel = "high";
-    else if (maxRiskPercentage > 25) highestRiskLevel = "moderate";
-    else if (maxRiskPercentage > 0) highestRiskLevel = "low";
-    
-    // 4. Send combined response
-    res.json({ ...user, risk_level: highestRiskLevel }); 
-  } catch (err) {
-    console.error("❌ [getPatientProfile] Error:", err.message);
-    res.status(500).json({ message: "Server error" });
-  }
+  /* ❌ PLATFORM ADMIN SHOULD NOT SEE MEDICAL DATA */
+  return false;
 };
 
-// Update patient profile
+/* =========================================================
+   RESOLVE PATIENT ID (supports /me)
+========================================================= */
+const resolvePatientId = (req) => {
+  if (!req.params.userId || req.params.userId === "me") {
+    return req.user._id;
+  }
+  return req.params.userId;
+};
+
+/* =========================================================
+   PATIENT PROFILE
+========================================================= */
+export const getPatientProfile = async (req, res) => {
+  try {
+    const patientId = resolvePatientId(req);
+
+    if (!(await canAccessPatient(req.user, patientId)))
+      return res.status(403).json({ message: "Access denied" });
+
+    const user = await User.findById(patientId)
+      .select("-password")
+      .lean();
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const ai = await AISummary.findOne({ patient: patientId }).lean();
+
+    const risks = [
+      ai?.diabetes_risk,
+      ai?.anemia_risk,
+      ai?.hypertension_risk,
+      ai?.cardiac_risk,
+    ].filter((r) => typeof r === "number");
+
+    const maxRisk = risks.length ? Math.max(...risks) : 0;
+
+    let risk_level = "unknown";
+    if (maxRisk > 75) risk_level = "critical";
+    else if (maxRisk > 50) risk_level = "high";
+    else if (maxRisk > 25) risk_level = "moderate";
+    else if (maxRisk > 0) risk_level = "low";
+
+    res.json({ ...user, risk_level });
+  } catch (err) {
+    console.error("❌ getPatientProfile:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+/* =========================================================
+   UPDATE PATIENT PROFILE (SELF ONLY)
+========================================================= */
 export const updatePatientProfile = async (req, res) => {
   try {
-    const userId = req.user?._id;
-    if (!userId) return res.status(400).json({ message: "User ID not provided" });
+    if (req.user.role !== "patient")
+      return res
+        .status(403)
+        .json({ message: "Only patients can update profile" });
 
     const allowedFields = [
       "name",
-      "email",
       "dob",
       "gender",
       "blood_type",
       "phone",
       "address",
       "preferred_language",
+      "profile_image",
     ];
 
     const updates = {};
-    allowedFields.forEach((field) => {
-      if (req.body[field] !== undefined) updates[field] = req.body[field];
-    });
+    for (const f of allowedFields) {
+      if (req.body[f] !== undefined) updates[f] = req.body[f];
+    }
 
-    const user = await User.findByIdAndUpdate(userId, updates, {
+    const user = await User.findByIdAndUpdate(req.user._id, updates, {
       new: true,
       runValidators: true,
     }).select("-password");
 
     res.json(user);
   } catch (err) {
-    console.error("❌ [updatePatientProfile] Error:", err.message);
+    console.error("❌ updatePatientProfile:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
 
-/* -------------------------------------------------------------------------- */
-/*                              MEDICAL RECORDS                               */
-/* -------------------------------------------------------------------------- */
-
-// Health records
+/* =========================================================
+   HEALTH RECORDS
+========================================================= */
 export const getPatientRecords = async (req, res) => {
   try {
-    const userId = req.user?._id || req.params.userId;
-    const records = await HealthRecord.find({ patient: userId }).sort({ recorded_at: -1 }).lean();
-    res.json(records || []);
+    const patientId = resolvePatientId(req);
+
+    if (!(await canAccessPatient(req.user, patientId)))
+      return res.status(403).json({ message: "Access denied" });
+
+    const records = await HealthRecord.find({ patient: patientId })
+      .sort({ recorded_at: -1 })
+      .lean();
+
+    res.json(records);
   } catch (err) {
-    console.error("❌ [getPatientRecords] Error:", err.message);
+    console.error("❌ getPatientRecords:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
 
-// Prescriptions
+/* =========================================================
+   PRESCRIPTIONS
+========================================================= */
 export const getPatientPrescriptions = async (req, res) => {
   try {
-    const userId = req.user?._id || req.params.userId;
-    const prescriptions = await Prescription.find({ patient: userId })
+    const patientId = resolvePatientId(req);
+
+    if (!(await canAccessPatient(req.user, patientId)))
+      return res.status(403).json({ message: "Access denied" });
+
+    const prescriptions = await Prescription.find({ patient: patientId })
       .sort({ prescribed_at: -1 })
       .lean();
-    res.json(prescriptions || []);
+
+    res.json(prescriptions);
   } catch (err) {
-    console.error("❌ [getPatientPrescriptions] Error:", err.message);
+    console.error("❌ getPatientPrescriptions:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
 
-// Lab Reports
+/* =========================================================
+   LAB REPORTS
+========================================================= */
 export const getPatientLabReports = async (req, res) => {
   try {
-    const userId = req.user?._id || req.params.userId;
-    const reports = await LabReport.find({ patient: userId }).sort({ test_date: -1 }).lean();
-    res.json(reports || []);
+    const patientId = resolvePatientId(req);
+
+    if (!(await canAccessPatient(req.user, patientId)))
+      return res.status(403).json({ message: "Access denied" });
+
+    const reports = await LabReport.find({ patient: patientId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json(reports);
   } catch (err) {
-    console.error("❌ [getPatientLabReports] Error:", err.message);
+    console.error("❌ getPatientLabReports:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
 
-// Alerts
+/* =========================================================
+   ALERTS
+========================================================= */
 export const getPatientAlerts = async (req, res) => {
   try {
-    const userId = req.user?._id || req.params.userId;
-    const alerts = await Alert.find({ patient: userId }).sort({ created_at: -1 }).lean();
-    res.json(alerts || []);
+    const patientId = resolvePatientId(req);
+
+    if (!(await canAccessPatient(req.user, patientId)))
+      return res.status(403).json({ message: "Access denied" });
+
+    const alerts = await Alert.find({ patient: patientId })
+      .sort({ created_at: -1 })
+      .lean();
+
+    res.json(alerts);
   } catch (err) {
-    console.error("❌ [getPatientAlerts] Error:", err.message);
+    console.error("❌ getPatientAlerts:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
 
-// AI Summary
+/* =========================================================
+   AI SUMMARY
+========================================================= */
 export const getPatientAISummary = async (req, res) => {
   try {
-    const userId = req.user?._id || req.params.userId;
-    const summary = await AISummary.findOne({ patient: userId }).lean();
+    const patientId = resolvePatientId(req);
+
+    if (!(await canAccessPatient(req.user, patientId)))
+      return res.status(403).json({ message: "Access denied" });
+
+    const summary = await AISummary.findOne({ patient: patientId }).lean();
+
     res.json(summary || {});
   } catch (err) {
-    console.error("❌ [getPatientAISummary] Error:", err.message);
+    console.error("❌ getPatientAISummary:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
